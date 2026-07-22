@@ -1,0 +1,4 @@
+# opencv-python is provided by the base image (dustynv/opencv) with CUDA+GStreamer.
+numpy>=1.24,<2
+requests==2.31.0
+psycopg2-binary==2.9.9

@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mentoredge.io/schemas/stop/v1",
+  "title": "Mentor Edge Stop v1",
+  "description": "Schema de parada individual detectada o registrada manualmente.",
+  "type": "object",
+  "required": ["stop_id", "device_id", "stop_type", "started_at", "source"],
+  "additionalProperties": false,
+  "properties": {
+    "stop_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID unico de la parada"
+    },
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Identificador del dispositivo Jetson"
+    },
+    "stop_type": {
+      "type": "string",
+      "enum": [
+        "MICROPARADA",
+        "PARADA_NO_ASIGNADA",
+        "PROGRAMADA",
+        "MECANICA",
+        "ELECTRICA",
+        "CAMBIO_FORMATO",
+        "FALTA_MATERIAL",
+        "CALIDAD",
+        "OTRA"
+      ],
+      "description": "Tipo/clasificacion de la parada"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Inicio de la parada en ISO 8601 UTC"
+    },
+    "ended_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Fin de la parada. null si la parada sigue abierta."
+    },
+    "duration_ms": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Duracion en milisegundos. Calculado automaticamente al cerrar."
+    },
+    "justified": {
+      "type": "boolean",
+      "description": "Si la parada fue justificada por un operador"
+    },
+    "reason": {
+      "type": ["string", "null"],
+      "description": "Razon de justificacion"
+    },
+    "category": {
+      "type": ["string", "null"],
+      "description": "Categoria asignada a la parada"
+    },
+    "justified_by": {
+      "type": ["string", "null"],
+      "description": "Identificador del actor que justifico"
+    },
+    "source": {
+      "type": "string",
+      "enum": ["detector", "operator", "cloud", "system"],
+      "description": "Origen de la parada"
+    }
+  }
+}

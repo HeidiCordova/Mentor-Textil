@@ -1,0 +1,249 @@
+-- =============================================================
+-- mentor_edge — Template de schema por LÍNEA
+-- El placeholder {schema} se reemplaza con linea_{id} antes de ejecutar.
+-- Ejemplo: CREATE SCHEMA linea_3 → tablas linea_3.stops, etc.
+--
+-- Invocar desde init_line.sh:
+--   sed 's/{schema}/linea_3/g' linea_template.sql | psql ...
+-- =============================================================
+
+CREATE SCHEMA IF NOT EXISTS {schema};
+
+-- ─── Buffer de eventos de producción (detecciones, OEE, señales) ──────
+
+CREATE TABLE IF NOT EXISTS {schema}.events_buffer (
+    id          BIGSERIAL  PRIMARY KEY,
+    event_id    UUID UNIQUE NOT NULL,
+    event_type  VARCHAR(32) NOT NULL,
+    timestamp   TIMESTAMPTZ NOT NULL,
+    payload     JSONB NOT NULL DEFAULT '{}',
+    synced      BOOLEAN DEFAULT FALSE,
+    dead        BOOLEAN DEFAULT FALSE,
+    retry_count INTEGER DEFAULT 0,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    synced_at   TIMESTAMPTZ,
+    expires_at  TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '6 months')
+);
+
+CREATE INDEX IF NOT EXISTS idx_{schema}_events_pending
+    ON {schema}.events_buffer (timestamp ASC)
+    WHERE synced = false AND dead = false;
+CREATE INDEX IF NOT EXISTS idx_{schema}_events_synced
+    ON {schema}.events_buffer (synced, timestamp);
+CREATE INDEX IF NOT EXISTS idx_{schema}_events_expiry
+    ON {schema}.events_buffer (expires_at)
+    WHERE synced = true OR dead = true;
+
+ALTER TABLE {schema}.events_buffer SET (autovacuum_vacuum_scale_factor = 0.05);
+ALTER TABLE {schema}.events_buffer SET (autovacuum_analyze_scale_factor = 0.02);
+
+-- ─── Paradas (stops) individuales detectadas o manuales ──────────────
+
+CREATE TABLE IF NOT EXISTS {schema}.stops (
+    id              BIGSERIAL  PRIMARY KEY,
+    stop_id         UUID UNIQUE NOT NULL DEFAULT uuid_generate_v4(),
+    stop_type       VARCHAR(32) NOT NULL DEFAULT 'PARADA_NO_ASIGNADA',
+    started_at      TIMESTAMPTZ NOT NULL,
+    ended_at        TIMESTAMPTZ,
+    duration_ms     INTEGER,
+    justified       BOOLEAN NOT NULL DEFAULT FALSE,
+    reason          TEXT,
+    category        VARCHAR(64),
+    categoria_id    INTEGER,
+    justified_by    VARCHAR(128),
+    justified_at    TIMESTAMPTZ,
+    source          VARCHAR(32) NOT NULL DEFAULT 'detector',
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    synced          BOOLEAN DEFAULT FALSE,
+    synced_at       TIMESTAMPTZ,
+
+    CONSTRAINT chk_{schema}_stop_type CHECK (stop_type IN (
+        'MICROPARADA', 'PARADA_NO_ASIGNADA', 'PROGRAMADA', 'NO_PROGRAMADA',
+        'MECANICA', 'ELECTRICA', 'CAMBIO_FORMATO',
+        'FALTA_MATERIAL', 'CALIDAD', 'REFRIGERIO',
+        'CAPACITACION', 'MANTENIMIENTO', 'OTRA'
+    ))
+);
+
+CREATE INDEX IF NOT EXISTS idx_{schema}_stops_ts
+    ON {schema}.stops (started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_{schema}_stops_open
+    ON {schema}.stops (started_at)
+    WHERE ended_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_{schema}_stops_unjustified
+    ON {schema}.stops (started_at DESC)
+    WHERE justified = false AND ended_at IS NOT NULL;
+
+ALTER TABLE {schema}.stops SET (autovacuum_vacuum_scale_factor = 0.05);
+ALTER TABLE {schema}.stops SET (autovacuum_analyze_scale_factor = 0.02);
+
+CREATE OR REPLACE FUNCTION {schema}.update_stop_duration()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.ended_at IS NOT NULL AND OLD.ended_at IS NULL THEN
+        NEW.duration_ms = EXTRACT(EPOCH FROM (NEW.ended_at - NEW.started_at)) * 1000;
+    END IF;
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_{schema}_stop_duration
+BEFORE UPDATE ON {schema}.stops
+FOR EACH ROW
+EXECUTE FUNCTION {schema}.update_stop_duration();
+
+-- ─── Runs de producción ───────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS {schema}.production_runs (
+    id              BIGSERIAL  PRIMARY KEY,
+    run_id          UUID NOT NULL DEFAULT uuid_generate_v4(),
+    started_at      TIMESTAMPTZ NOT NULL,
+    ended_at        TIMESTAMPTZ,
+    linea_id        INTEGER,
+    producto_id     INTEGER,
+    turno_id        INTEGER,
+    producto_nombre VARCHAR(200),
+    turno_nombre    VARCHAR(100),
+    total_count     INTEGER NOT NULL DEFAULT 0,
+    good_count      INTEGER NOT NULL DEFAULT 0,
+    reject_count    INTEGER NOT NULL DEFAULT 0,
+    total_time_ms   BIGINT  NOT NULL DEFAULT 0,
+    run_time_ms     BIGINT  NOT NULL DEFAULT 0,
+    stop_time_ms    BIGINT  NOT NULL DEFAULT 0,
+    oee             NUMERIC(5,2),
+    disponibilidad  NUMERIC(5,2),
+    rendimiento     NUMERIC(5,2),
+    calidad         NUMERIC(5,2),
+    status          VARCHAR(16) NOT NULL DEFAULT 'running',
+    synced          BOOLEAN DEFAULT FALSE,
+    synced_at       TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+
+    CONSTRAINT chk_{schema}_run_status CHECK (status IN ('running','done','cancelled'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_{schema}_run_active
+    ON {schema}.production_runs (status)
+    WHERE status = 'running';
+CREATE INDEX IF NOT EXISTS idx_{schema}_run_time
+    ON {schema}.production_runs (started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_{schema}_run_pending
+    ON {schema}.production_runs (synced)
+    WHERE synced = false;
+
+-- ─── OEE snapshots (intervalos de 60s para análisis histórico) ───────
+
+CREATE TABLE IF NOT EXISTS {schema}.oee_snapshots (
+    id             BIGSERIAL PRIMARY KEY,
+    turno          VARCHAR(50),
+    fecha          DATE        NOT NULL,
+    hora           TIMESTAMPTZ NOT NULL,
+    disponibilidad NUMERIC(5,2),
+    rendimiento    NUMERIC(5,2),
+    calidad        NUMERIC(5,2),
+    oee            NUMERIC(5,2),
+    produccion     INT DEFAULT 0,
+    interval_s     INT,
+    head           TEXT[],
+    data           BIGINT[],
+    creado_en      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_{schema}_oee_fecha ON {schema}.oee_snapshots (fecha DESC, interval_s);
+CREATE INDEX IF NOT EXISTS idx_{schema}_oee_hora  ON {schema}.oee_snapshots (hora DESC);
+
+-- ─── Vision detections (audit de cortes/eventos detectados) ──────────
+
+CREATE TABLE IF NOT EXISTS {schema}.vision_detections (
+    id           BIGSERIAL   PRIMARY KEY,
+    detection_id UUID        NOT NULL,
+    detected_at  TIMESTAMPTZ NOT NULL,
+    line_code    VARCHAR(64),
+    confidence   REAL,
+    signal_edge  REAL,
+    signal_color REAL,
+    signal_flow  REAL,
+    signal_beige REAL,
+    roi_id       VARCHAR(32),
+    CONSTRAINT {schema}_vision_det_uq UNIQUE (detection_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_{schema}_vd_ts
+    ON {schema}.vision_detections (detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_{schema}_vd_conf
+    ON {schema}.vision_detections (confidence);
+
+ALTER TABLE {schema}.vision_detections SET (autovacuum_vacuum_scale_factor = 0.05);
+
+-- Trigger: extrae automáticamente las detecciones de events_buffer
+CREATE OR REPLACE FUNCTION {schema}.extract_vision_detection()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.event_type <> 'CORTE' THEN
+        RETURN NEW;
+    END IF;
+    INSERT INTO {schema}.vision_detections (
+        detection_id, detected_at, line_code,
+        confidence, signal_edge, signal_color, signal_flow, signal_beige, roi_id
+    ) VALUES (
+        NEW.event_id, NEW.timestamp,
+        NEW.payload ->> 'line_code',
+        (NEW.payload ->> 'confidence')::REAL,
+        (NEW.payload -> 'signals' ->> 'edge')::REAL,
+        (NEW.payload -> 'signals' ->> 'color')::REAL,
+        (NEW.payload -> 'signals' ->> 'flow')::REAL,
+        (NEW.payload -> 'signals' ->> 'beige')::REAL,
+        NEW.payload ->> 'roi_id'
+    )
+    ON CONFLICT (detection_id) DO NOTHING;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_{schema}_extract_vision
+AFTER INSERT ON {schema}.events_buffer
+FOR EACH ROW EXECUTE FUNCTION {schema}.extract_vision_detection();
+
+-- ─── Funciones de mantenimiento del buffer ────────────────────────────
+
+CREATE OR REPLACE FUNCTION {schema}.purge_expired_events() RETURNS INTEGER AS $$
+DECLARE removed INTEGER;
+BEGIN
+    DELETE FROM {schema}.events_buffer
+    WHERE expires_at < NOW() AND (synced = true OR dead = true);
+    GET DIAGNOSTICS removed = ROW_COUNT;
+    RETURN removed;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION {schema}.mark_stale_events_dead(max_age_hours INTEGER DEFAULT 48)
+RETURNS INTEGER AS $$
+DECLARE affected INTEGER;
+BEGIN
+    UPDATE {schema}.events_buffer
+    SET dead = true
+    WHERE synced = false AND dead = false
+      AND created_at < (NOW() - make_interval(hours => max_age_hours));
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    RETURN affected;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION {schema}.emergency_purge_synced(keep_count INTEGER DEFAULT 10000)
+RETURNS INTEGER AS $$
+DECLARE removed INTEGER; total INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO total FROM {schema}.events_buffer WHERE synced = true;
+    IF total <= keep_count THEN RETURN 0; END IF;
+    DELETE FROM {schema}.events_buffer
+    WHERE id IN (
+        SELECT id FROM {schema}.events_buffer
+        WHERE synced = true ORDER BY timestamp ASC
+        LIMIT (total - keep_count)
+    );
+    GET DIAGNOSTICS removed = ROW_COUNT;
+    RETURN removed;
+END;
+$$ LANGUAGE plpgsql;

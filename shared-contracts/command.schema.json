@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mentoredge.io/schemas/command/v1",
+  "title": "Mentor Edge Command v1",
+  "description": "Schema de comando idempotente enviado desde Cloud o Tablet hacia Edge Gateway.",
+  "type": "object",
+  "required": ["device_id", "command_type", "idempotency_key", "issued_by"],
+  "additionalProperties": false,
+  "properties": {
+    "command_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID del comando. Generado por el emisor o por el gateway."
+    },
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Identificador del dispositivo destino"
+    },
+    "command_type": {
+      "type": "string",
+      "enum": [
+        "MODIFICAR_PARADA",
+        "JUSTIFICAR_PARADA",
+        "ACTUALIZAR_CONFIG",
+        "INICIAR_CALIBRACION",
+        "REINICIAR_PIPELINE",
+        "COMANDO_CUSTOM"
+      ],
+      "description": "Tipo de comando a ejecutar"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Datos del comando. Estructura depende de command_type."
+    },
+    "issued_by": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Identificador del actor: cloud:user:99, local:operador:juan, system"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Clave unica para deduplicacion. Si llega dos veces, no se ejecuta doble."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["RECEIVED", "APPLIED", "FAILED"],
+      "description": "Estado actual del comando (solo en respuestas)"
+    },
+    "result": {
+      "type": ["object", "null"],
+      "description": "Resultado de la ejecucion (solo en respuestas)"
+    },
+    "error_message": {
+      "type": ["string", "null"],
+      "description": "Mensaje de error si status=FAILED"
+    }
+  }
+}

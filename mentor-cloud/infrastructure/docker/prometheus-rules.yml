@@ -1,0 +1,72 @@
+groups:
+  - name: mentor_edge_alerts
+    interval: 30s
+    rules:
+
+      # Comandos pendientes para un dispositivo > 10 minutos
+      - alert: EdgeDeviceCommandsStuck
+        expr: pg_pending_commands_oldest_seconds > 600
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dispositivo {{ $labels.device_id }} tiene comandos sin entregar"
+          description: >
+            El dispositivo {{ $labels.device_id }} tiene
+            {{ $value | humanize }} segundos con comandos pendientes sin recibir.
+            Puede estar offline o con problemas de sincronizacion.
+
+      # Muchos comandos acumulados (posible problema de sync masivo)
+      - alert: EdgeDeviceCommandsBacklog
+        expr: pg_pending_commands_total > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backlog crítico de comandos para dispositivo {{ $labels.device_id }}"
+          description: >
+            El dispositivo {{ $labels.device_id }} tiene {{ $value }}
+            comandos pendientes acumulados. Revisar conectividad del edge.
+
+  - name: mentor_services
+    rules:
+
+      # Algún servicio Go caído
+      - alert: CloudServiceDown
+        expr: up{job=~"cloud-ingest"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Servicio {{ $labels.job }} caído"
+          description: "El servicio {{ $labels.job }} no responde a Prometheus."
+
+      # CPU del servidor > 90% por más de 5 minutos
+      - alert: HighCPU
+        expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100) > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU del servidor al {{ $value | humanize }}%"
+          description: "El uso de CPU ha superado el 90% durante mas de 5 minutos."
+
+      # RAM > 90%
+      - alert: HighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAM del servidor al {{ $value | humanize }}%"
+          description: "El uso de memoria supera el 90%."
+
+      # Disco > 85%
+      - alert: DiskAlmostFull
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disco al {{ $value | humanize }}%"
+          description: "El disco raiz supera el 85% de uso."

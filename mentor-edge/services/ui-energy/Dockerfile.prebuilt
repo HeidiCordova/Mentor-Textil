@@ -1,0 +1,12 @@
+# ui-energy ARM64 — usa dist/ pre-compilado en el host (sin RUN en target arch)
+FROM nginx:1.25-alpine
+
+COPY dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 \
+    CMD wget -q --spider http://127.0.0.1:8087/ || exit 1
+
+EXPOSE 8087
+
+CMD ["nginx", "-g", "daemon off;"]

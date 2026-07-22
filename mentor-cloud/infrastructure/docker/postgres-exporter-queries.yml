@@ -1,0 +1,51 @@
+pg_oee_snapshots:
+  query: |
+    SELECT schemaname, n_live_tup AS row_estimate
+    FROM pg_stat_user_tables
+    WHERE relname = 'oee_snapshots'
+  master: true
+  metrics:
+    - schemaname:
+        usage: LABEL
+        description: "Schema name"
+    - row_estimate:
+        usage: GAUGE
+        description: "Estimated live rows in oee_snapshots"
+
+pg_schema_size_bytes:
+  query: |
+    SELECT
+      t.schemaname,
+      SUM(pg_total_relation_size(quote_ident(t.schemaname) || '.' || quote_ident(t.tablename))) AS bytes
+    FROM pg_tables t
+    WHERE t.schemaname NOT IN ('pg_catalog','information_schema','pg_toast')
+    GROUP BY t.schemaname
+
+pg_pending_commands:
+  query: |
+    SELECT
+      device_id,
+      COUNT(*) AS total,
+      EXTRACT(EPOCH FROM (NOW() - MIN(created_at))) AS oldest_seconds
+    FROM gateway.commands
+    WHERE status = 'pending'
+    GROUP BY device_id
+  master: true
+  metrics:
+    - device_id:
+        usage: LABEL
+        description: "Edge device ID"
+    - total:
+        usage: GAUGE
+        description: "Number of pending commands for this device"
+    - oldest_seconds:
+        usage: GAUGE
+        description: "Seconds since the oldest pending command was created"
+  master: true
+  metrics:
+    - schemaname:
+        usage: LABEL
+        description: "Schema name"
+    - bytes:
+        usage: GAUGE
+        description: "Total on-disk bytes used by schema"

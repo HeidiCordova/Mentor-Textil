@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #0047d1;
+  --color-primary-dark: #002a6b;
+  --color-secondary: #0ea5e9;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 64px;
+  --header-height: 64px;
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 260px;
+    --header-height: 56px;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* ─── Dark mode globals ─────────────────────────────────────────── */
+/*
+  Paleta oscura coherente (Slate):
+  --bg-page    : #0f172a  slate-900
+  --bg-surface : #1e293b  slate-800
+  --bg-raised  : #334155  slate-700
+  --border     : #475569  slate-600
+  --text-base  : #f8fafc  slate-50
+  --text-muted : #94a3b8  slate-400
+*/
+
+html.dark { color-scheme: dark; }
+
+/* ── Página / Layout ── */
+html.dark body,
+html.dark .bg-gray-100,
+html.dark .app-layout,
+html.dark .main-content {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark .bg-white        { background-color: #1e293b !important; }
+html.dark .bg-gray-50      { background-color: #0f172a !important; }
+html.dark .bg-gray-200     { background-color: #334155 !important; }
+
+/* ── Texto ── */
+html.dark .text-gray-900   { color: #f8fafc !important; }
+html.dark .text-gray-800   { color: #f1f5f9 !important; }
+html.dark .text-gray-700   { color: #e2e8f0 !important; }
+html.dark .text-gray-600   { color: #cbd5e1 !important; }
+html.dark .text-gray-500   { color: #94a3b8 !important; }
+html.dark .text-gray-400   { color: #64748b !important; }
+
+/* ── Bordes ── */
+html.dark .border-gray-100 { border-color: #334155 !important; }
+html.dark .border-gray-200 { border-color: #475569 !important; }
+html.dark .border-gray-300 { border-color: #64748b !important; }
+
+/* ── Hover ── */
+html.dark .hover\:bg-gray-50:hover  { background-color: #1e293b !important; }
+html.dark .hover\:bg-gray-100:hover { background-color: #334155 !important; }
+
+/* ── Inputs y selects nativos ── */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.dark textarea,
+html.dark select {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder { color: #64748b !important; }
+
+/* ── View titles (estilos scoped de vistas) ── */
+html.dark .view-title          { color: #f8fafc !important; }
+html.dark .section-title-view  { color: #f8fafc !important; }
+html.dark .filter-label        { color: #cbd5e1 !important; }
+html.dark .field-label         { color: #cbd5e1 !important; }
+
+/* ── Barra de filtros ── */
+html.dark .filters-bar {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+}
+
+/* ── field-select (select nativo en modales) ── */
+html.dark .field-select {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+/* ── Tablas de datos ── */
+html.dark .data-table thead,
+html.dark .data-table thead tr { background-color: #334155 !important; }
+html.dark .data-table th {
+  background-color: #334155 !important;
+  color: #e2e8f0 !important;
+  border-color: #475569 !important;
+}
+html.dark .data-table td {
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+}
+html.dark .data-table tbody tr:nth-child(even) { background-color: #1a2944 !important; }
+html.dark .data-table tbody tr:hover           { background-color: #1e3a5f !important; }
+html.dark .data-table tbody tr.row-selected    {
+  background-color: #1e3a5f !important;
+  border-left-color: #3b82f6 !important;
+}
+
+/* ── Paginación ── */
+html.dark .pagination {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+}
+html.dark .pagination-btn {
+  background-color: #334155 !important;
+  color: #f1f5f9 !important;
+  border-color: #475569 !important;
+}
+html.dark .pagination-btn:hover { background-color: #1e3a5f !important; }
+html.dark .pagination-info      { color: #cbd5e1 !important; }
+
+/* ── Formularios en modales (form-section, etc.) ── */
+html.dark .form-section { background: #1e293b !important; border-color: #475569 !important; }
+html.dark .section-title { color: #f1f5f9 !important; }
+
+/* ── Badges ── */
+html.dark .badge-active   { background-color: #064e3b !important; color: #6ee7b7 !important; }
+html.dark .badge-inactive { background-color: #374151 !important; color: #9ca3af !important; }
+
+

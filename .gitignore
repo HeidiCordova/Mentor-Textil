@@ -1,0 +1,63 @@
+# Dependencias
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.Python
+*.egg-info/
+
+# Builds y dist
+dist/
+build/
+*.o
+*.so
+
+# Entornos
+.env
+.env.local
+.env.*.local
+venv/
+.venv/
+
+# Editores
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Docker volúmenes locales
+pgdata/
+
+# Credenciales y secretos
+*.pem
+*.key
+*.crt
+secrets/
+
+# Go binaries (compiled outputs — never commit)
+mentor-edge/services/*/bin/
+mentor-edge/services/*/*.exe
+mentor-edge/services/*/resiliencia
+mentor-edge/services/*/enviador
+mentor-edge/services/*/edge-gateway
+mentor-edge/services/*/edge-config-service
+mentor-edge/services/*/main
+mentor-edge/services/edge-gateway/edge-gateway-*
+mentor-cloud/services/*/main
+mentor-cloud/services/cloud-gateway/main
+mentor-cloud/services/cloud-config/main
+
+# Binarios energy-sender compilados
+mentor-edge/services/energy-sender/energy-sender
+mentor-edge/services/energy-sender/energy-sender-arm64
+
+# Temporales
+tmp/
+temp/
+.tmp/
+.env.raspberry-energy

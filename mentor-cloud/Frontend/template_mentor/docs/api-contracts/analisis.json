@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Análisis API Contract",
+  "description": "Contratos de API para módulos de análisis",
+  
+  "definitions": {
+    "AnalysisDataPoint": {
+      "type": "object",
+      "required": ["timestamp", "value"],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp en formato ISO 8601"
+        },
+        "value": {
+          "type": "number",
+          "description": "Valor de la medición"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["normal", "warning", "alarm"],
+          "description": "Estado de la medición"
+        }
+      }
+    },
+    
+    "AnalysisResponse": {
+      "type": "object",
+      "required": ["data"],
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AnalysisDataPoint"
+          }
+        }
+      }
+    }
+  },
+  
+  "endpoints": {
+    "/api/analisis/general": {
+      "GET": {
+        "description": "Obtener datos de análisis general",
+        "parameters": {
+          "query": {
+            "startDate": {
+              "type": "string",
+              "format": "date-time",
+              "required": true
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time",
+              "required": true
+            },
+            "plantId": {
+              "type": "integer"
+            },
+            "lineaId": {
+              "type": "integer"
+            },
+            "dispositivoId": {
+              "type": "integer"
+            },
+            "variableId": {
+              "type": "integer"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AnalysisResponse"
+          }
+        }
+      }
+    },
+    
+    "/api/analisis/energia": {
+      "GET": {
+        "description": "Análisis de consumo energético",
+        "responses": {
+          "200": {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "consumption": {
+                      "type": "number"
+                    },
+                    "power": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "/api/analisis/produccion": {
+      "GET": {
+        "description": "Análisis de producción",
+        "responses": {
+          "200": {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "produced": {
+                      "type": "integer"
+                    },
+                    "target": {
+                      "type": "integer"
+                    },
+                    "efficiency": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "/api/analisis/pareto": {
+      "GET": {
+        "description": "Datos para gráfico de Pareto",
+        "responses": {
+          "200": {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "categoria": {
+                      "type": "string"
+                    },
+                    "frecuencia": {
+                      "type": "integer"
+                    },
+                    "porcentaje": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

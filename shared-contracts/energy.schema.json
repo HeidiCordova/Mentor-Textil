@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EnergySnapshotBatch",
+  "description": "Batch of energy meter snapshots from edge devices to cloud",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["meter_id", "timestamp", "interval_s", "head", "data"],
+    "properties": {
+      "meter_id": {
+        "type": "string",
+        "description": "Unique identifier for the meter within the device"
+      },
+      "timestamp": {
+        "type": "integer",
+        "description": "Unix timestamp in milliseconds"
+      },
+      "interval_s": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Sampling interval in seconds"
+      },
+      "head": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Column headers matching Modbus register names"
+      },
+      "data": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Values corresponding to head columns, encoded as strings"
+      }
+    },
+    "additionalProperties": false
+  }
+}

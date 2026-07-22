@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mentor Mobile</string>
+    <string name="camera_preview">Vista Previa de Cámara</string>
+    <string name="status_panel">Panel de Estado</string>
+    <string name="start_streaming">Iniciar Transmisión</string>
+    <string name="stop_streaming">Detener Transmisión</string>
+</resources>

@@ -1,0 +1,39 @@
+# Gradle
+.gradle/
+build/
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Android Studio
+.idea/
+*.iml
+*.iws
+*.ipr
+.DS_Store
+local.properties
+
+# NDK
+.cxx/
+cmake-build-*/
+
+# GStreamer
+gstreamer-android/
+
+# Kotlin
+*.kt.bak
+*.kexe
+
+# IDE
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

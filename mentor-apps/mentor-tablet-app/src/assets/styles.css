@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- tema claro (default) ---- */
+:root {
+  --edge-50:  2 6 23;
+  --edge-100: 15 23 42;
+  --edge-200: 30 41 59;
+  --edge-300: 51 65 85;
+  --edge-400: 71 85 105;
+  --edge-500: 100 116 139;
+  --edge-600: 148 163 184;
+  --edge-700: 203 213 225;
+  --edge-800: 226 232 240;
+  --edge-900: 241 245 249;
+  --edge-950: 248 250 252;
+}
+
+/* ---- tema oscuro ---- */
+.dark {
+  --edge-50:  238 244 255;
+  --edge-100: 218 230 255;
+  --edge-200: 189 212 255;
+  --edge-300: 144 186 255;
+  --edge-400: 91 149 255;
+  --edge-500: 59 114 246;
+  --edge-600: 37 86 235;
+  --edge-700: 26 63 216;
+  --edge-800: 28 53 175;
+  --edge-900: 28 49 138;
+  --edge-950: 13 27 42;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-edge-950 text-edge-200 font-sans;
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input,
+  textarea,
+  select {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-edge-700/50 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-edge-600/50;
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

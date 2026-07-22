@@ -1,0 +1,13 @@
+-- Migración 26: Eliminar FK de categoria_id en analytics.paradas
+--
+-- analytics.paradas es una tabla desnormalizada para ingesta de datos del edge.
+-- Los edge devices usan IDs de categoría locales que no corresponden a los IDs
+-- del catálogo cloud (config.categoria_paradas). La FK impide el sync correcto.
+--
+-- El flujo de categorías correcto es:
+--   1. El edge envía categoria_id local + categoria_nombre (texto)
+--   2. El cloud almacena solo el nombre para display
+--   3. Cuando el operador justifica en cloud, se asigna el categoria_id del cloud
+--   4. El COALESCE UPSERT protege la justificación cloud de sobreescritura del edge
+--
+ALTER TABLE analytics.paradas DROP CONSTRAINT IF EXISTS paradas_categoria_id_fkey;

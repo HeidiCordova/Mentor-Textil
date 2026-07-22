@@ -1,0 +1,25 @@
+-- ============================================================
+-- Migration 14 — REEMPLAZADA / YA NO APLICA A mentor_cloud
+-- ============================================================
+-- La tabla producto_atributo y las columnas FK de productos
+-- fueron movidas a cada mentor_planta_X (schema por línea).
+--
+-- Las columnas están definidas en:
+--   infrastructure/database/12_linea_template.sql
+--
+-- Orden de creación dentro del schema (ej: linea_10):
+--
+--   1. linea_10.producto_atributo
+--        id, tipo (material|destino|marca|sabor|tamano), nombre, activo
+--
+--   2. linea_10.productos
+--        id, codigo, nombre, activo,
+--        material_id → producto_atributo(id)
+--        destino_id  → producto_atributo(id)
+--        marca_id    → producto_atributo(id)
+--        sabor_id    → producto_atributo(id)
+--        tamano_id   → producto_atributo(id)
+--
+-- Las plantas existentes (mentor_planta_12, mentor_planta_13)
+-- fueron migradas con ALTER TABLE directamente.
+-- ============================================================

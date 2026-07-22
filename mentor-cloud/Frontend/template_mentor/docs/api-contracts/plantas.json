@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Plantas API Contract",
+  "description": "Contratos de API para gestión de plantas",
+  
+  "definitions": {
+    "Planta": {
+      "type": "object",
+      "required": ["id", "nombre", "compania", "lineas", "activo"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "ID único de la planta"
+        },
+        "nombre": {
+          "type": "string",
+          "description": "Nombre de la planta"
+        },
+        "compania": {
+          "type": "string",
+          "description": "Nombre de la compañía"
+        },
+        "lineas": {
+          "type": "integer",
+          "description": "Número de líneas de producción"
+        },
+        "activo": {
+          "type": "boolean",
+          "description": "Estado activo/inactivo"
+        }
+      }
+    },
+    
+    "PlantaRequest": {
+      "type": "object",
+      "required": ["nombre", "compania", "lineas"],
+      "properties": {
+        "nombre": {
+          "type": "string"
+        },
+        "compania": {
+          "type": "string"
+        },
+        "lineas": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    
+    "PlantaListResponse": {
+      "type": "object",
+      "required": ["data", "total", "page", "perPage"],
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Planta"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "description": "Total de plantas en el sistema"
+        },
+        "page": {
+          "type": "integer",
+          "description": "Página actual"
+        },
+        "perPage": {
+          "type": "integer",
+          "description": "Elementos por página"
+        }
+      }
+    }
+  },
+  
+  "endpoints": {
+    "/api/plantas": {
+      "GET": {
+        "description": "Listar todas las plantas",
+        "parameters": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "default": 1
+            },
+            "perPage": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PlantaListResponse"
+          }
+        }
+      },
+      
+      "POST": {
+        "description": "Crear nueva planta",
+        "headers": {
+          "Authorization": "Bearer {token}",
+          "Content-Type": "application/json"
+        },
+        "requestBody": {
+          "$ref": "#/definitions/PlantaRequest"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/definitions/Planta"
+          }
+        }
+      }
+    },
+    
+    "/api/plantas/{id}": {
+      "GET": {
+        "description": "Obtener planta por ID",
+        "parameters": {
+          "path": {
+            "id": {
+              "type": "integer"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/Planta"
+          },
+          "404": {
+            "type": "object",
+            "properties": {
+              "error": true,
+              "message": "Planta no encontrada"
+            }
+          }
+        }
+      },
+      
+      "PUT": {
+        "description": "Actualizar planta",
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "requestBody": {
+          "$ref": "#/definitions/PlantaRequest"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/Planta"
+          }
+        }
+      },
+      
+      "DELETE": {
+        "description": "Eliminar planta",
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "responses": {
+          "200": {
+            "type": "object",
+            "properties": {
+              "success": {
+                "type": "boolean",
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

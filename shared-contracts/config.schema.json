@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mentoredge.io/schemas/config/v1",
+  "title": "Mentor Edge Line Config v1",
+  "description": "Schema congelado de la configuracion de linea. NO modificar sin incrementar version.",
+  "type": "object",
+  "required": ["roi", "thresholds", "fsm", "mode", "config_version"],
+  "properties": {
+    "roi": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 5,
+      "items": { "type": "integer", "minimum": 0 },
+      "description": "[x, y, width, height, bottom_margin?]"
+    },
+    "thresholds": {
+      "type": "object",
+      "required": ["edge", "color", "flow"],
+      "properties": {
+        "edge": { "type": "number", "minimum": 0, "maximum": 1 },
+        "color": { "type": "number", "minimum": 0, "maximum": 1 },
+        "flow": { "type": "number", "minimum": 0, "maximum": 1 },
+        "dy": { "type": "number", "minimum": 0, "description": "Vertical displacement threshold px/frame" },
+        "high": { "type": "number", "minimum": 0, "maximum": 1, "description": "Hysteresis activation" },
+        "low": { "type": "number", "minimum": 0, "maximum": 1, "description": "Hysteresis deactivation" }
+      },
+      "additionalProperties": false
+    },
+    "fsm": {
+      "type": "object",
+      "required": ["n_frames", "cooldown"],
+      "properties": {
+        "n_frames": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "cooldown": { "type": "integer", "minimum": 0, "maximum": 60 }
+      },
+      "additionalProperties": false
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["textil", "botellas"]
+    },
+    "config_version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "camera": {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string" },
+        "fps": { "type": "integer", "minimum": 1, "maximum": 60 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

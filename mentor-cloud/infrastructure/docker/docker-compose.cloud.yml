@@ -1,0 +1,308 @@
+services:
+  postgres-cloud:
+    image: postgres:16-alpine
+    container_name: mentor-cloud-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mentor_cloud}
+      POSTGRES_USER: ${POSTGRES_USER:-mentor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: America/Lima
+      PGTZ: America/Lima
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../database/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ../database/11_admin_schema.sql:/docker-entrypoint-initdb.d/02_admin.sql:ro
+      - ../database/08_derived_variables.sql:/docker-entrypoint-initdb.d/03_derived_variables.sql:ro
+      - ../database/13_legacy_operational.sql:/docker-entrypoint-initdb.d/04_legacy_operational.sql:ro
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mentor} -d ${POSTGRES_DB:-mentor_cloud}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  cloud-identity:
+    build:
+      context: ../../services/cloud-identity
+      dockerfile: Dockerfile
+    container_name: mentor-cloud-identity
+    restart: unless-stopped
+    depends_on:
+      postgres-cloud:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: "8081"
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      GATEWAY_URL: http://cloud-gateway:8888
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      TZ: America/Lima
+    expose:
+      - "8081"
+
+  cloud-ingest:
+    build:
+      context: ../..
+      dockerfile: services/cloud-ingest/Dockerfile
+    container_name: mentor-cloud-ingest
+    restart: unless-stopped
+    depends_on:
+      postgres-cloud:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      PORT: "8082"
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      EDGE_API_KEY: ${EDGE_API_KEY:-}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      GATEWAY_URL: http://cloud-gateway:8888
+      TZ: America/Lima
+    expose:
+      - "8082"
+
+  cloud-config:
+    build:
+      context: ../..
+      dockerfile: services/cloud-config/Dockerfile
+    container_name: mentor-cloud-config
+    restart: unless-stopped
+    depends_on:
+      postgres-cloud:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: "8083"
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      GATEWAY_URL: http://cloud-gateway:8888
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      LINEA_TEMPLATE_SQL: ${LINEA_TEMPLATE_SQL:-}
+      ENERGY_LINEA_TEMPLATE_SQL: /app/energy_linea_template.sql
+      TZ: America/Lima
+    volumes:
+      - ../../infrastructure/database/12_linea_template.sql:/app/12_linea_template.sql:ro
+      - ../../infrastructure/database/energy_linea_template.sql:/app/energy_linea_template.sql:ro
+    expose:
+      - "8083"
+
+  cloud-analytics:
+    build:
+      context: ../..
+      dockerfile: services/cloud-analytics/Dockerfile
+    container_name: mentor-cloud-analytics
+    restart: unless-stopped
+    depends_on:
+      postgres-cloud:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      PORT: "8084"
+      INGEST_URL: http://cloud-ingest:8082
+      GATEWAY_URL: http://cloud-gateway:8888
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      TZ: America/Lima
+    expose:
+      - "8084"
+
+  cloud-frontend:
+    build:
+      context: ../../Frontend/template_mentor
+      dockerfile: Dockerfile
+    container_name: mentor-cloud-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+
+  cloud-integration:
+    build:
+      context: ../..
+      dockerfile: services/cloud-integration/Dockerfile
+    container_name: mentor-cloud-integration
+    restart: unless-stopped
+    depends_on:
+      postgres-cloud:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: "8085"
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      TZ: America/Lima
+    expose:
+      - "8085"
+
+  energy-ingest:
+    build:
+      context: ../..
+      dockerfile: services/energy-ingest/Dockerfile
+    container_name: mentor-energy-ingest
+    restart: unless-stopped
+    depends_on:
+      postgres-cloud:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      ENERGY_API_KEY: ${EDGE_API_KEY:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      PORT: "8086"
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      TZ: America/Lima
+    expose:
+      - "8086"
+
+  cloud-tablet:
+    build:
+      context: ../../../mentor-apps/mentor-tablet-app
+      dockerfile: Dockerfile
+    container_name: mentor-cloud-tablet
+    restart: unless-stopped
+    ports:
+      - "5174:80"
+
+  cloud-gateway:
+    build:
+      context: ../..
+      dockerfile: services/cloud-gateway/Dockerfile
+    container_name: mentor-cloud-gateway
+    restart: unless-stopped
+    depends_on:
+      postgres-cloud:
+        condition: service_healthy
+      cloud-identity:
+        condition: service_started
+      cloud-ingest:
+        condition: service_started
+      cloud-config:
+        condition: service_started
+      cloud-analytics:
+        condition: service_started
+      cloud-integration:
+        condition: service_started
+      energy-ingest:
+        condition: service_started
+      cloud-frontend:
+        condition: service_started
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      EDGE_API_KEY: ${EDGE_API_KEY:-}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      PORT: "8888"
+      IDENTITY_URL: http://cloud-identity:8081
+      INGEST_URL: http://cloud-ingest:8082
+      CONFIG_URL: http://cloud-config:8083
+      ANALYTICS_URL: http://cloud-analytics:8084
+      INTEGRATION_URL: http://cloud-integration:8085
+      ENERGY_URL: http://energy-ingest:8086
+      FRONTEND_URL: http://cloud-frontend:80
+      TZ: America/Lima
+    ports:
+      - "8888:8888"
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: mentor-monitoring-node-exporter
+    restart: unless-stopped
+    pid: host
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(dev|sys|proc|run/credentials/.+|var/lib/docker/.+|run/docker/netns/.+)($|/)'
+    volumes:
+      - /:/host:ro,rslave
+    expose:
+      - "9100"
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: mentor-monitoring-postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-mentor}:${POSTGRES_PASSWORD}@postgres-cloud:5432/mentor_planta_14?sslmode=disable
+      PG_EXPORTER_EXTEND_QUERY_PATH: /etc/queries.yml
+    volumes:
+      - ./postgres-exporter-queries.yml:/etc/queries.yml:ro
+    depends_on:
+      postgres-cloud:
+        condition: service_healthy
+    expose:
+      - "9187"
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: mentor-monitoring-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus-rules.yml:/etc/prometheus/rules/mentor.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - node-exporter
+      - postgres-exporter
+
+  grafana:
+    image: grafana/grafana:10.4.3
+    container_name: mentor-monitoring-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-changeme}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/"
+      TZ: America/Lima
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: "smtp-relay.brevo.com:2525"
+      GF_SMTP_USER: "9920d7001@smtp-brevo.com"
+      GF_SMTP_PASSWORD: "xsmtpsib-b3682a3576431913cb5879ca7e404dc2ebc174ada9158d566bc4c4c9c4da732b-Q6yFK0QEVfdegiQL"
+      GF_SMTP_FROM_ADDRESS: "alonsosss21@gmail.com"
+      GF_SMTP_FROM_NAME: "Mentor Monitor"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  # Broker MQTT para mc60-bridge (edge → cloud via MQTT)
+  # Puerto 1883 debe estar abierto en el firewall del servidor.
+  # Credenciales: MQTT_USER / MQTT_PASSWORD del .env
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: mentor-mqtt-broker
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    ports:
+      - "1883:1883"
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t '$$SYS/#' -C 1 -W 2 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pgdata:
+  grafana-data:
+  prometheus-data:
+  mosquitto-data:
+  mosquitto-log:

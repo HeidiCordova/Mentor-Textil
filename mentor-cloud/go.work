@@ -1,0 +1,12 @@
+go 1.25.7
+
+use (
+	./services/cloud-analytics
+	./services/cloud-config
+	./services/cloud-gateway
+	./services/cloud-identity
+	./services/cloud-ingest
+	./services/cloud-integration
+	./services/energy-ingest
+	./shared
+)

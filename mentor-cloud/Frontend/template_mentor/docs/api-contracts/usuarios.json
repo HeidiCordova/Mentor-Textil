@@ -1,0 +1,424 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Usuarios API Contract",
+  "description": "Contratos de API para gestión de usuarios",
+  
+  "definitions": {
+    "Usuario": {
+      "type": "object",
+      "required": ["id", "username", "email", "nombre", "rol", "activo"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "ID único del usuario"
+        },
+        "username": {
+          "type": "string",
+          "description": "Nombre de usuario único"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email del usuario"
+        },
+        "nombre": {
+          "type": "string",
+          "description": "Nombre completo"
+        },
+        "apellido": {
+          "type": "string",
+          "description": "Apellidos"
+        },
+        "rol": {
+          "type": "string",
+          "enum": ["ADMIN", "SUPERVISOR", "OPERATOR", "VIEWER"],
+          "description": "Rol del usuario"
+        },
+        "empresaId": {
+          "type": "integer",
+          "description": "ID de la empresa asociada"
+        },
+        "activo": {
+          "type": "boolean",
+          "description": "Estado del usuario"
+        },
+        "ultimoAcceso": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Último acceso al sistema"
+        },
+        "fechaCreacion": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    
+    "UsuarioRequest": {
+      "type": "object",
+      "required": ["username", "email", "nombre", "password", "rol"],
+      "properties": {
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50,
+          "pattern": "^[a-zA-Z0-9_]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "nombre": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "apellido": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8,
+          "description": "Contraseña (mínimo 8 caracteres)"
+        },
+        "rol": {
+          "type": "string",
+          "enum": ["ADMIN", "SUPERVISOR", "OPERATOR", "VIEWER"]
+        },
+        "empresaId": {
+          "type": "integer"
+        },
+        "activo": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    
+    "UsuarioUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "nombre": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "apellido": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8,
+          "description": "Nueva contraseña (opcional)"
+        },
+        "rol": {
+          "type": "string",
+          "enum": ["ADMIN", "SUPERVISOR", "OPERATOR", "VIEWER"]
+        },
+        "empresaId": {
+          "type": "integer"
+        },
+        "activo": {
+          "type": "boolean"
+        }
+      }
+    },
+    
+    "PaginatedResponse": {
+      "type": "object",
+      "required": ["data", "total", "page", "limit"],
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Usuario"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "description": "Total de registros"
+        },
+        "page": {
+          "type": "integer",
+          "description": "Página actual"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Registros por página"
+        },
+        "totalPages": {
+          "type": "integer",
+          "description": "Total de páginas"
+        }
+      }
+    },
+    
+    "Rol": {
+      "type": "object",
+      "required": ["id", "nombre", "descripcion"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": ["ADMIN", "SUPERVISOR", "OPERATOR", "VIEWER"]
+        },
+        "nombre": {
+          "type": "string",
+          "description": "Nombre descriptivo del rol"
+        },
+        "descripcion": {
+          "type": "string",
+          "description": "Descripción de los permisos"
+        },
+        "permisos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Lista de permisos del rol"
+        }
+      }
+    }
+  },
+  
+  "endpoints": {
+    "/api/usuarios": {
+      "GET": {
+        "description": "Listar usuarios con paginación",
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "queryParameters": {
+          "page": {
+            "type": "integer",
+            "default": 1,
+            "description": "Número de página"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 20,
+            "description": "Registros por página"
+          },
+          "search": {
+            "type": "string",
+            "description": "Búsqueda por nombre o email"
+          },
+          "rol": {
+            "type": "string",
+            "enum": ["ADMIN", "SUPERVISOR", "OPERATOR", "VIEWER"],
+            "description": "Filtrar por rol"
+          },
+          "activo": {
+            "type": "boolean",
+            "description": "Filtrar por estado"
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PaginatedResponse"
+          }
+        }
+      },
+      
+      "POST": {
+        "description": "Crear nuevo usuario",
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "requestBody": {
+          "$ref": "#/definitions/UsuarioRequest"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/definitions/Usuario"
+          },
+          "400": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "example": "VALIDATION_ERROR"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "details": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "const": "DUPLICATE_USERNAME"
+                  },
+                  "message": {
+                    "type": "string",
+                    "example": "El nombre de usuario ya existe"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "/api/usuarios/{id}": {
+      "GET": {
+        "description": "Obtener detalle de usuario",
+        "parameters": {
+          "id": {
+            "type": "integer",
+            "description": "ID del usuario"
+          }
+        },
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/Usuario"
+          },
+          "404": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "const": "NOT_FOUND"
+                  },
+                  "message": {
+                    "type": "string",
+                    "example": "Usuario no encontrado"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      
+      "PUT": {
+        "description": "Actualizar usuario",
+        "parameters": {
+          "id": {
+            "type": "integer",
+            "description": "ID del usuario"
+          }
+        },
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "requestBody": {
+          "$ref": "#/definitions/UsuarioUpdateRequest"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/Usuario"
+          }
+        }
+      },
+      
+      "DELETE": {
+        "description": "Eliminar usuario (soft delete)",
+        "parameters": {
+          "id": {
+            "type": "integer",
+            "description": "ID del usuario"
+          }
+        },
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "responses": {
+          "200": {
+            "type": "object",
+            "properties": {
+              "success": {
+                "type": "boolean",
+                "const": true
+              },
+              "message": {
+                "type": "string",
+                "example": "Usuario eliminado exitosamente"
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "/api/usuarios/roles": {
+      "GET": {
+        "description": "Obtener lista de roles disponibles",
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "responses": {
+          "200": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Rol"
+            }
+          }
+        }
+      }
+    }
+  },
+  
+  "examples": {
+    "createUser": {
+      "request": {
+        "username": "jperez",
+        "email": "jperez@example.com",
+        "nombre": "Juan",
+        "apellido": "Pérez",
+        "password": "SecurePass123!",
+        "rol": "OPERATOR",
+        "empresaId": 1,
+        "activo": true
+      },
+      "response": {
+        "id": 15,
+        "username": "jperez",
+        "email": "jperez@example.com",
+        "nombre": "Juan",
+        "apellido": "Pérez",
+        "rol": "OPERATOR",
+        "empresaId": 1,
+        "activo": true,
+        "ultimoAcceso": null,
+        "fechaCreacion": "2025-11-19T10:30:00Z"
+      }
+    }
+  }
+}

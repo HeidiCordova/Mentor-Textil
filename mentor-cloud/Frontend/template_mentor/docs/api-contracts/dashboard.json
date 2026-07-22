@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Dashboard API Contract",
+  "description": "Contratos de API para dashboard y estadísticas",
+  
+  "definitions": {
+    "DashboardStats": {
+      "type": "object",
+      "required": [
+        "totalPlantas",
+        "totalLineas",
+        "totalDispositivos",
+        "alarmasActivas",
+        "eficienciaPromedio",
+        "produccionHoy"
+      ],
+      "properties": {
+        "totalPlantas": {
+          "type": "integer",
+          "description": "Total de plantas activas"
+        },
+        "totalLineas": {
+          "type": "integer",
+          "description": "Total de líneas de producción"
+        },
+        "totalDispositivos": {
+          "type": "integer",
+          "description": "Total de dispositivos monitoreados"
+        },
+        "alarmasActivas": {
+          "type": "integer",
+          "description": "Número de alarmas activas"
+        },
+        "eficienciaPromedio": {
+          "type": "number",
+          "description": "Eficiencia promedio del sistema (%)"
+        },
+        "produccionHoy": {
+          "type": "integer",
+          "description": "Unidades producidas hoy"
+        }
+      }
+    }
+  },
+  
+  "endpoints": {
+    "/api/dashboard/stats": {
+      "GET": {
+        "description": "Obtener estadísticas generales del dashboard",
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/DashboardStats"
+          }
+        }
+      }
+    },
+    
+    "/api/dashboard/reportes": {
+      "GET": {
+        "description": "Obtener datos para gráficos de reportes",
+        "parameters": {
+          "query": {
+            "startDate": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Fecha inicio en formato ISO 8601"
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Fecha fin en formato ISO 8601"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "fecha": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "valor": {
+                      "type": "number"
+                    },
+                    "tipo": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

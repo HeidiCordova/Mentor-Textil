@@ -1,0 +1,232 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Empresas API Contract",
+  "description": "Contratos de API para gestión de empresas",
+  
+  "definitions": {
+    "Empresa": {
+      "type": "object",
+      "required": ["id", "nombre", "ruc", "activo"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "ID único de la empresa"
+        },
+        "nombre": {
+          "type": "string",
+          "description": "Nombre de la empresa"
+        },
+        "ruc": {
+          "type": "string",
+          "description": "RUC de la empresa"
+        },
+        "direccion": {
+          "type": "string",
+          "description": "Dirección fiscal"
+        },
+        "telefono": {
+          "type": "string",
+          "description": "Teléfono de contacto"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email corporativo"
+        },
+        "activo": {
+          "type": "boolean",
+          "description": "Estado de la empresa"
+        },
+        "fechaCreacion": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha de creación"
+        }
+      }
+    },
+    
+    "EmpresaRequest": {
+      "type": "object",
+      "required": ["nombre", "ruc"],
+      "properties": {
+        "nombre": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "ruc": {
+          "type": "string",
+          "pattern": "^[0-9]{11}$"
+        },
+        "direccion": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "telefono": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "activo": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    }
+  },
+  
+  "endpoints": {
+    "/api/empresas": {
+      "GET": {
+        "description": "Listar todas las empresas",
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "responses": {
+          "200": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Empresa"
+            }
+          }
+        }
+      },
+      
+      "POST": {
+        "description": "Crear nueva empresa",
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "requestBody": {
+          "$ref": "#/definitions/EmpresaRequest"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/definitions/Empresa"
+          },
+          "400": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "example": "VALIDATION_ERROR"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "details": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "/api/empresas/{id}": {
+      "GET": {
+        "description": "Obtener detalle de empresa",
+        "parameters": {
+          "id": {
+            "type": "integer",
+            "description": "ID de la empresa"
+          }
+        },
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/Empresa"
+          },
+          "404": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "const": "NOT_FOUND"
+                  },
+                  "message": {
+                    "type": "string",
+                    "example": "Empresa no encontrada"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      
+      "PUT": {
+        "description": "Actualizar empresa",
+        "parameters": {
+          "id": {
+            "type": "integer",
+            "description": "ID de la empresa"
+          }
+        },
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "requestBody": {
+          "$ref": "#/definitions/EmpresaRequest"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/Empresa"
+          }
+        }
+      },
+      
+      "DELETE": {
+        "description": "Eliminar empresa",
+        "parameters": {
+          "id": {
+            "type": "integer",
+            "description": "ID de la empresa"
+          }
+        },
+        "headers": {
+          "Authorization": "Bearer {token}"
+        },
+        "responses": {
+          "200": {
+            "type": "object",
+            "properties": {
+              "success": {
+                "type": "boolean",
+                "const": true
+              },
+              "message": {
+                "type": "string",
+                "example": "Empresa eliminada exitosamente"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mentoredge.io/schemas/oee-record.v1.json",
+  "title": "OEE Record",
+  "description": "Snapshot periodico de metricas OEE enviado desde edge hacia cloud. Formato columnar compacto head/data.",
+  "type": "object",
+  "required": ["code", "time", "device_id", "interval_s", "v", "head", "data"],
+  "additionalProperties": false,
+  "properties": {
+    "code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Identificador unico de linea configurado en la UI",
+      "examples": ["ISM_AQP_PERSISTENCIA_L7", "Linea 1"]
+    },
+    "time": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp en milisegundos del cierre de la ventana de agregacion"
+    },
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Identificador del dispositivo edge que genera el registro",
+      "examples": ["jetson-orin-01"]
+    },
+    "interval_s": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Duracion de la ventana de agregacion en segundos. Permite al receptor reconstruir la linea de tiempo."
+    },
+    "v": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Version del esquema. Permite evolucion sin romper compatibilidad."
+    },
+    "head": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 5,
+      "maxItems": 5,
+      "description": "Nombres de las columnas de metricas",
+      "examples": [["T_DISPONIBLE", "T_MICROPARADA", "T_PARADA_NO_ASIGNADA", "CONTEO_1", "CONTEO_2"]]
+    },
+    "data": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0 },
+      "minItems": 5,
+      "maxItems": 5,
+      "description": "Valores correspondientes a head. Tiempos en milisegundos, conteos en unidades."
+    }
+  }
+}

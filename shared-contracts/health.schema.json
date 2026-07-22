@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mentoredge.com/schemas/health.v1.json",
+  "title": "Service Health Schema",
+  "type": "object",
+  "required": ["service", "status", "timestamp"],
+  "properties": {
+    "service": {
+      "type": "string",
+      "description": "Service identifier"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ok", "degraded", "error"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "uptime": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Uptime in seconds"
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "pending_events": {"type": "integer"},
+        "processed_events": {"type": "integer"},
+        "error_count": {"type": "integer"},
+        "last_sync": {"type": "string", "format": "date-time"}
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "message": {"type": "string"},
+          "timestamp": {"type": "string", "format": "date-time"}
+        }
+      }
+    }
+  }
+}

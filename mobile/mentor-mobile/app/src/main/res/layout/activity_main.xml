@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="@color/black">
+
+    <!-- Contenedor de Cámara con Overlay -->
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1">
+
+        <!-- Preview de Cámara -->
+        <SurfaceView
+            android:id="@+id/camera_preview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Overlay de Guía (Bounding Box) -->
+        <com.mentor.mobile.ui.CameraOverlayView
+            android:id="@+id/camera_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </FrameLayout>
+
+    <!-- Panel de Estado -->
+    <ScrollView
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:background="@color/dark_gray"
+        android:fillViewport="true">
+        
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Título -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Estado del Sistema"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_marginBottom="12dp" />
+
+        <!-- IP del Servidor -->
+        <TextView
+            android:id="@+id/tv_server_ip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Servidor: --"
+            android:textSize="12sp"
+            android:textColor="@color/white"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Estado de Conexión -->
+        <TextView
+            android:id="@+id/tv_connection_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Estado: Desconectado"
+            android:textSize="12sp"
+            android:textColor="@color/red"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Latencia -->
+        <TextView
+            android:id="@+id/tv_latency"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Latencia: --ms"
+            android:textSize="12sp"
+            android:textColor="@color/white"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Estado de Transmisión con Indicador Visual -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+            
+            <View
+                android:id="@+id/streaming_indicator"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_marginEnd="6dp"
+                android:background="@android:drawable/presence_invisible" />
+            
+            <TextView
+                android:id="@+id/tv_streaming_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📹 Preview"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@color/white" />
+        </LinearLayout>
+
+        <!-- Feedback de Conteo -->
+        <TextView
+            android:id="@+id/tv_pallet_count"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Conteo: 0"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/green"
+            android:gravity="center"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Separador -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/gray"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Botones de Control (PRIMERO) -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Control"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btn_start_stream"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="▶ Iniciar"
+            android:backgroundTint="@color/green"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:layout_marginBottom="6dp" />
+
+        <Button
+            android:id="@+id/btn_stop_stream"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="⏹ Detener"
+            android:backgroundTint="@color/red"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:layout_marginBottom="6dp" />
+
+        <Button
+            android:id="@+id/btn_disconnect"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="🔌 Desconectar"
+            android:backgroundTint="#FF6600"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Separador -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/gray"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Configuración de IP -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Configuración"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_marginBottom="6dp" />
+
+        <EditText
+            android:id="@+id/et_server_ip"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:hint="IP del Servidor"
+            android:text="192.168.15.13"
+            android:textColor="@color/white"
+            android:textColorHint="@color/gray"
+            android:textSize="12sp"
+            android:backgroundTint="@color/white"
+            android:inputType="text"
+            android:layout_marginBottom="6dp" />
+
+        <EditText
+            android:id="@+id/et_server_port"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:hint="Puerto"
+            android:text="5000"
+            android:textColor="@color/white"
+            android:textColorHint="@color/gray"
+            android:textSize="12sp"
+            android:backgroundTint="@color/white"
+            android:inputType="number"
+            android:layout_marginBottom="12dp" />
+
+        <Button
+            android:id="@+id/btn_reconnect"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="🔄 Reconectar"
+            android:backgroundTint="#0099FF"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Mensaje de Error -->
+        <TextView
+            android:id="@+id/tv_error"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="@color/red"
+            android:visibility="gone"
+            android:layout_marginTop="16dp" />
+
+    </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

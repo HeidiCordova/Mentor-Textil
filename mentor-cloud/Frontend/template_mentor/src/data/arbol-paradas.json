@@ -1,0 +1,339 @@
+{
+  "tipoParadaProgramada": {
+    "id": "PLC-L1-Tipo de Parada Programada",
+    "nombre": "Tipo de P. Programada",
+    "categorias": [
+      {
+        "id": 1,
+        "nombre": "CAMBIOS",
+        "nivel": 1,
+        "subcategorias": [
+          {
+            "id": 2,
+            "nombre": "CAMBIO DE FORMATO",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 3,
+            "nombre": "CAMBIO DE PREFORMA",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 4,
+            "nombre": "CAMBIO DE SABOR REFRESCOS (ENJUAGUE)",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "CAMBIO DE SABOR (ENJUAGUE)",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 5,
+            "nombre": "ENJUAGUE CON AGUA CALIENTE",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 6,
+            "nombre": "CAMBIO DE FORMATO (SANEAMIENTO 3 PASOS)",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "nombre": "SANEAMIENTOS",
+        "nivel": 1,
+        "subcategorias": [
+          {
+            "id": 8,
+            "nombre": "SANEAMIENTO 5 PASOS",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 9,
+            "nombre": "SANEAMIENTO CIP SALA DE JARABE",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 10,
+            "nombre": "SANEAMIENTO DE LÍNEA DE AGUA TRATADA",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "CAMBIO DE SELLOS",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 11,
+            "nombre": "SANEAMIENTO 3 PASOS (LLENADORA - TERMINO DE SEMANA)",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 12,
+            "nombre": "SANEAMIENTO CON AGUA CALIENTE (LLENADORA - PASTEURIZADOR)",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 13,
+            "nombre": "SANEAMIENTO EXTERNO DE MAQUINA",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 14,
+            "nombre": "SANEMIENTO CON VAPOR A FILTROS DE LA PATP",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "SANEAMIENTOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "nombre": "CHARLAS Y REUNIONES",
+        "nivel": 1,
+        "subcategorias": [
+          {
+            "id": 16,
+            "nombre": "REUNIONES SEGURIDAD INDUSTRIAL",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "CHARLAS Y REUNIONES",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 17,
+            "nombre": "CAPACITACIÓN PERSONAL PLANTA",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "CHARLAS Y REUNIONES",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          }
+        ]
+      },
+      {
+        "id": 18,
+        "nombre": "PARADA PROGRAMADA",
+        "nivel": 1,
+        "subcategorias": [
+          {
+            "id": 19,
+            "nombre": "MUESTREO MICROBIOLÓGICO",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "PARADA PROGRAMADA",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 20,
+            "nombre": "LIBERACIÓN DE LÍNEA POR INSPECTOR DE CALIDAD",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "PARADA PROGRAMADA",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 21,
+            "nombre": "AUDITORIAS",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "PARADA PROGRAMADA",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 22,
+            "nombre": "LUBRICACIÓN DE MÁQUINAS",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "PARADA PROGRAMADA",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 23,
+            "nombre": "RELEVO A PRODUCCIÓN A OTRA LÍNEA",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "PARADA PROGRAMADA",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 24,
+            "nombre": "SIMULACROS",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "PARADA PROGRAMADA",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 25,
+            "nombre": "INVENTARIO DE MATERIALES",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "PARADA PROGRAMADA",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 26,
+            "nombre": "NUEVOS PROYECTOS",
+            "nivel": 2,
+            "categoriaGeneral": "parada programada",
+            "categoriaParada": "PARADA PROGRAMADA",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          }
+        ]
+      }
+    ]
+  },
+  "tipoParadaNoProgramada": {
+    "id": "PLC-L1-Tipo de Parada no Programada",
+    "nombre": "Tipo de Parada no Programada",
+    "categorias": [
+      {
+        "id": 1,
+        "nombre": "CAMBIOS",
+        "nivel": 1,
+        "subcategorias": [
+          {
+            "id": 2,
+            "nombre": "AJUSTE SOPLADORA",
+            "nivel": 2,
+            "categoriaGeneral": "parada no programada",
+            "categoriaParada": "CAMBIOS",
+            "descripcionParada": "CAMBIO DE FORMATO",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 3,
+            "nombre": "AJUSTE TRANS. NEUMÁTICO",
+            "nivel": 2,
+            "categoriaGeneral": "parada no programada",
+            "categoriaParada": "CAMBIOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 4,
+            "nombre": "AJUSTE ETIQUETADORA",
+            "nivel": 2,
+            "categoriaGeneral": "parada no programada",
+            "categoriaParada": "CAMBIOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 5,
+            "nombre": "AJUSTE RINSER",
+            "nivel": 2,
+            "categoriaGeneral": "parada no programada",
+            "categoriaParada": "CAMBIOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 6,
+            "nombre": "LLENADORA MESAL ISOBARICA",
+            "nivel": 2,
+            "categoriaGeneral": "parada no programada",
+            "categoriaParada": "CAMBIOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 7,
+            "nombre": "AJUSTE TOLVA DE TAPAS",
+            "nivel": 2,
+            "categoriaGeneral": "parada no programada",
+            "categoriaParada": "CAMBIOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          },
+          {
+            "id": 8,
+            "nombre": "AJUSTE CODIFICADOR",
+            "nivel": 2,
+            "categoriaGeneral": "parada no programada",
+            "categoriaParada": "CAMBIOS",
+            "descripcionParada": "",
+            "maquina": "",
+            "parteMaquina": ""
+          }
+        ]
+      }
+    ]
+  }
+}

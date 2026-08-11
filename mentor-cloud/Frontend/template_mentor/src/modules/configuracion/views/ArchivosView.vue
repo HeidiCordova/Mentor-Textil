@@ -47,12 +47,12 @@ const loadData = async () => {
   await execute(async () => {
     // Mock empresas
     empresas.value = [
-      { id: 1, nombre: 'Industrias San Miguel' }
+      { id: 1, nombre: 'Art Atlas' }
     ]
 
     // Mock plantas
     plantas.value = [
-      { id: 1, nombre: 'Histórico Embotelladora San Miguel', empresaId: 1 }
+      { id: 1, nombre: 'Histórico Planta Textil', empresaId: 1 }
     ]
 
     // Mock archivos

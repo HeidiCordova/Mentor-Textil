@@ -729,7 +729,7 @@ func main() {
 ### Casos de Uso
 
 #### Python es bueno para:
-- Visión artificial (OpenCV, YOLO) — librerías nativas en C++
+- Visión artificial (OpenCV) — librerías nativas en C++
 - Prototipado rápido
 - ML/AI (TensorFlow, PyTorch)
 - Scripts de administración
@@ -742,7 +742,7 @@ func main() {
 - Orquestación de microservicios
 
 **Por eso en Mentor Edge**:
-- **Python**: vision-event-detector, yolo-counter (CPU-bound, librerías especializadas)
+- **Python**: vision-event-detector (CPU-bound, librerías especializadas)
 - **Go**: enviador, edge-gateway, resiliencia, cloud services (I/O-bound, concurrencia alta)
 
 ---
@@ -972,4 +972,4 @@ io.Copy(dst, src)  // Sin pasar por userspace
 - Prototipado rápido
 - Scripts de administración
 
-**Mentor Edge usa ambos estratégicamente**: Go donde se necesita velocidad y concurrencia, Python donde se necesitan librerías especializadas (OpenCV, YOLO).
+**Mentor Edge usa ambos estratégicamente**: Go donde se necesita velocidad y concurrencia, Python donde se necesitan librerías especializadas como OpenCV.

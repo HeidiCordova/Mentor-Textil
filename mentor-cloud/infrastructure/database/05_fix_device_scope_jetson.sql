@@ -54,7 +54,6 @@ BEGIN
         ('Tiempo Microparada',          'T_MICROPARADA',               '0', 'OEE', v_dispositivo_id, 13, 7),
         ('Tiempo Parada No Asignada',   'T_PARADA_NO_ASIGNADA',        '0', 'OEE', v_dispositivo_id, 13, 7),
         ('Conteo 1',                    'CONTEO_1',                    '0', 'OEE', v_dispositivo_id, 13, 7),
-        ('Conteo 2',                    'CONTEO_2',                    '0', 'OEE', v_dispositivo_id, 13, 7),
         ('T Capacitacion Obligatoria',  'T_CAPACITACION_OBLIGATORIA',  '0', 'OEE', v_dispositivo_id, 13, 7),
         ('T Mantenimiento Planificado', 'T_MANTENIMIENTO_PLANIFICADO', '0', 'OEE', v_dispositivo_id, 13, 7),
         ('T Parada No Programada',      'T_PARADA_NO_PROGRAMADA',      '0', 'OEE', v_dispositivo_id, 13, 7),

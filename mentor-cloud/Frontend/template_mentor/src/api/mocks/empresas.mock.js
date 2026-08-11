@@ -1,33 +1,33 @@
 let companies = [
   {
     id: 1,
-    nombre: 'Coca-Cola',
+    nombre: 'Art Atlas',
     ruc: '20123456789',
     direccion: 'Av. Industrial Norte 897',
     telefono: '997712345',
-    email: 'contacto@cocacola.com',
+    email: 'contacto@artatlas.pe',
     responsable: 'Carlos Ramírez',
     estado: true,
     creado: '2025-01-15T10:30:00'
   },
   {
     id: 2,
-    nombre: 'Alicorp',
+    nombre: 'Textiles del Sur',
     ruc: '20987654321',
     direccion: 'Jr. Lima 456, Callao',
     telefono: '998823456',
-    email: 'info@alicorp.com',
+    email: 'info@textilesdelsur.pe',
     responsable: 'María González',
     estado: true,
     creado: '2025-02-20T14:20:00'
   },
   {
     id: 3,
-    nombre: 'Gloria S.A.',
+    nombre: 'Confecciones Lima',
     ruc: '20456789123',
     direccion: 'Av. República de Panamá 2461',
     telefono: '999934567',
-    email: 'contacto@gloria.com.pe',
+    email: 'contacto@confeccioneslima.pe',
     responsable: 'Juan Pérez',
     estado: true,
     creado: '2025-03-10T09:15:00'

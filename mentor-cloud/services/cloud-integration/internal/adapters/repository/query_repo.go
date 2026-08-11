@@ -38,7 +38,7 @@ func (r *queryRepo) LatestSnapshot(ctx context.Context, lineaID int, empresaID i
 		  SELECT nombre, sku FROM %s
 		  WHERE device_id = s.device_id
 		    AND s.hora >= started_at
-		    AND (ended_at IS NULL OR s.hora <= ended_at)
+		    AND (ended_at IS NULL OR s.hora < ended_at)
 		  ORDER BY started_at DESC LIMIT 1
 		) pr ON true
 		WHERE s.linea_id = $1 AND s.empresa_id = $2 AND s.interval_s >= 300
@@ -80,7 +80,7 @@ func (r *queryRepo) ListSnapshots(ctx context.Context, lineaID int, empresaID in
 		  SELECT nombre, sku FROM %s
 		  WHERE device_id = s.device_id
 		    AND s.hora >= started_at
-		    AND (ended_at IS NULL OR s.hora <= ended_at)
+		    AND (ended_at IS NULL OR s.hora < ended_at)
 		  ORDER BY started_at DESC LIMIT 1
 		) pr ON true
 		WHERE s.linea_id = $1 AND s.empresa_id = $2 AND s.interval_s >= 300

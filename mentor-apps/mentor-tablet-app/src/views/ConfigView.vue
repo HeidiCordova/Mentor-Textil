@@ -11,20 +11,17 @@ const configStore = useConfigStore()
 const pl = usePlantasLineasStore()
 
 // ── Modo de línea ──────────────────────────────────────────────────────────
-const MODE_PRESETS = {
-  textil:   { micro_stop_max_s: 120,  stop_max_s: 1800, snapshot_interval_s: 1800, vel_unit: 'uh', vel_nominal_us: 0.00833 },
-  botellas: { micro_stop_max_s: 210,  stop_max_s: 300,  snapshot_interval_s: 300,  vel_unit: 'us', vel_nominal_us: 0.5 },
+const TEXTILE_OEE = {
+  micro_stop_max_s: 120,
+  stop_max_s: 86400,
+  snapshot_interval_s: 1800,
+  vel_unit: 'uh',
+  vel_nominal_us: 0.008333333,
 } as const
 
-type ModoKey = keyof typeof MODE_PRESETS
+type ModoKey = 'textil'
 
-const modoActivo = computed<ModoKey | null>(() => {
-  const c = configStore.config as Record<string, unknown>
-  const mode = c.mode as string | undefined
-  if (mode === 'textil' || mode === 'botellas') return mode
-  return null
-})
-
+const modoActivo = computed<ModoKey>(() => 'textil')
 const savingMode = ref(false)
 const confirmModo = ref<ModoKey | null>(null)
 
@@ -42,7 +39,7 @@ async function confirmarCambioModo(): Promise<void> {
   if (!modo) return
   confirmModo.value = null
   savingMode.value = true
-  const preset = MODE_PRESETS[modo]
+  const preset = TEXTILE_OEE
   const currentOee = (configStore.config.oee as Record<string, unknown>) ?? {}
   const patch = {
     mode: modo,
@@ -236,7 +233,7 @@ onMounted(async () => {
         </p>
         <div class="flex gap-3">
           <button
-            v-for="modo in (['textil', 'botellas'] as const)"
+            v-for="modo in (['textil'] as const)"
             :key="modo"
             class="flex-1 py-2.5 px-3 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50"
             :class="modoActivo === modo
@@ -247,7 +244,7 @@ onMounted(async () => {
           >
             <span class="block capitalize">{{ modo }}</span>
             <span class="block text-[10px] font-normal opacity-70 mt-0.5">
-              {{ modo === 'textil' ? 'Micro 2min · Snapshot 30min' : 'Micro 3.5min · Snapshot 5min' }}
+              Micro 2min · Snapshot 30min
             </span>
           </button>
         </div>
@@ -402,19 +399,19 @@ onMounted(async () => {
           <div class="rounded-lg bg-edge-900 border border-edge-700/40 p-3 mb-4 text-xs space-y-1 text-edge-300">
             <div class="flex justify-between">
               <span>Microparada hasta</span>
-              <span class="font-mono text-edge-100">{{ confirmModo === 'textil' ? '2 min' : '3.5 min' }}</span>
+              <span class="font-mono text-edge-100">2 min</span>
             </div>
             <div class="flex justify-between">
               <span>Parada desde</span>
-              <span class="font-mono text-edge-100">{{ confirmModo === 'textil' ? '2 min' : '3.5 min' }}</span>
+              <span class="font-mono text-edge-100">2 min</span>
             </div>
             <div class="flex justify-between">
               <span>Snapshot / Timeline</span>
-              <span class="font-mono text-edge-100">{{ confirmModo === 'textil' ? '30 min' : '5 min' }}</span>
+              <span class="font-mono text-edge-100">30 min</span>
             </div>
             <div class="flex justify-between">
               <span>Unidad velocidad</span>
-              <span class="font-mono text-edge-100">{{ confirmModo === 'textil' ? 'u/h' : 'u/s' }}</span>
+              <span class="font-mono text-edge-100">u/h</span>
             </div>
           </div>
           <div class="flex gap-2">

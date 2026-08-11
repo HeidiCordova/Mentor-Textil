@@ -1,6 +1,7 @@
 import uuid
 import time
 import logging
+import os
 import threading
 import urllib.request
 import json
@@ -13,8 +14,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 from ..domain.roi.roi_manager import ROI, ROIManager
 from ..domain.signals.signal_extractors import EdgeSignal, HistogramSignal, FlowSignal, BeigeSignal
-from ..domain.fusion.fusion_engine import FusionEngine, SignalValues
-from ..domain.fsm.event_fsm import EventFSM, FSMConfig
+from ..domain.fusion.fusion_engine import FusionEngine, SignalValues, TEXTILE_WEIGHTS
+from ..domain.fsm.textile_separator_fsm import EventFSM, FSMConfig
 from ..domain.calibration.calibrator import Calibrator
 from ..domain.calibration.fingerprint import build_calibration_fingerprint
 from ..domain.calibration.model import (
@@ -29,7 +30,7 @@ from ..domain.stop_tracker import StopTracker, StopAction
 from ..adapters.gateway_stop_client import GatewayStopClient
 from ..ports.frame_input import FrameInput
 from ..ports.config_port import ConfigPort
-from ..ports.event_output import EventOutput
+from ..ports.event_output import EventOutput, EventOutputError
 from ..ports.image_processor import ImageProcessor
 from ..ports.calibration_repository import CalibrationRepository
 
@@ -43,9 +44,7 @@ _OEE_HEAD_KEYS = [
     'T_PARADA_NO_ASIGNADA',
     'T_PARADA_MAYOR',
     'CONTEO_1',
-    'CONTEO_2',
     'MARCA',
-    'SABOR',
     'TAMANIO',
     'MATERIAL',
     'DESTINO',
@@ -61,14 +60,21 @@ _OEE_HEAD_KEYS = [
 
 # Claves cuyo valor por defecto es cadena vacía (no numérico)
 _OEE_STRING_KEYS = frozenset({
-    'MARCA', 'SABOR', 'TAMANIO', 'MATERIAL', 'DESTINO',
+    'MARCA', 'TAMANIO', 'MATERIAL', 'DESTINO',
     'TIPO_PARADA_PROGRAMADA', 'TIPO_PARADA_NO_PROGRAMADA',
+})
+
+_OEE_PRODUCT_ATTR_KEYS = frozenset({
+    'MARCA', 'TAMANIO', 'MATERIAL', 'DESTINO',
 })
 
 # ── OEE backfill on startup ────────────────────────────────
 # Persists last emission wall-clock time so the detector can fill
 # gaps with zero-valued snapshots after a power cycle / crash.
-_OEE_STATE_FILE = '/app/.last_oee_emit'
+_OEE_STATE_FILE = os.getenv(
+    'OEE_STATE_FILE',
+    '/var/lib/mentor/last_oee_emit',
+)
 _BACKFILL_MAX_WINDOWS = 96   # cap: 96 × 30 min = 48 h
 
 
@@ -154,6 +160,7 @@ class _HealthHandler(BaseHTTPRequestHandler):
                 beige_ratio     = getattr(det, '_last_beige_ratio', 0.0)
                 motion_score    = getattr(det, '_last_motion_score', 0.0)
                 fsm_state       = det.fsm._state.value if hasattr(det.fsm, '_state') else 'idle'
+                fsm_diagnostics = det.fsm.diagnostics
         else:
             detecting = False
             presence_motion = False
@@ -161,6 +168,7 @@ class _HealthHandler(BaseHTTPRequestHandler):
             beige_ratio  = 0.0
             motion_score = 0.0
             fsm_state = 'idle'
+            fsm_diagnostics = {'state': 'idle'}
         import json as _json
         stop_tracker_state = 'producing'
         active_stop_id = None
@@ -177,6 +185,7 @@ class _HealthHandler(BaseHTTPRequestHandler):
             'beige_ratio': round(beige_ratio, 4),
             'motion_score': round(motion_score, 4),
             'fsm_state': fsm_state,
+            'fsm_diagnostics': fsm_diagnostics,
             'stop_tracker_state': stop_tracker_state,
             'active_stop_id': active_stop_id,
             'idle_duration_s': round(idle_duration_s, 1),
@@ -361,8 +370,8 @@ class DetectorService:
         device_id: str,
         line_id: str = '1',
         line_code: str = 'MENTOR_DEFAULT_L1',
-        oee_interval: float = 60.0,
-        micro_stop_max_s: float = 120.0,  # textil default; botellas usa 210.0
+        oee_interval: float = 1800.0,
+        micro_stop_max_s: float = 120.0,
         health_port: int = 8001,
         gateway_url: Optional[str] = None,
         frame_skip: int = 2,
@@ -749,7 +758,6 @@ class DetectorService:
                 'T_PARADA_NO_ASIGNADA': 0,
                 'T_PARADA_MAYOR': 0,
                 'CONTEO_1': 0,
-                'CONTEO_2': 0,
                 'MERMA': 0,
                 'T_REFRIGERIO': 0,
                 'T_CAPACITACION_OBLIGATORIA': 0,
@@ -778,8 +786,13 @@ class DetectorService:
                 },
             }
             try:
-                self.event_output.send_event(event)
+                if not self.event_output.send_event(event):
+                    raise EventOutputError(
+                        f"OEE backfill event {event['event_id']} was rejected"
+                    )
                 sent += 1
+            except EventOutputError:
+                raise
             except Exception as exc:
                 self._logger.warning('Backfill window %d send failed: %s', i, exc)
 
@@ -882,6 +895,8 @@ class DetectorService:
                         if pframe.size == 0:
                             coverage = 0.0
                             motion_present = False
+                            motion_score = 0.0
+                            motion_sample_fresh = False
                         else:
                             raw_coverage = self._presence_beige_signal.compute(frame, pframe)
                             # Normalizar: misma sensibilidad absoluta que el ROI de conteo.
@@ -892,9 +907,13 @@ class DetectorService:
                             p_h, p_w = pframe.shape[:2]
                             coverage = min(1.0, raw_coverage * (p_h * p_w) / c_area)
                             motion_present = self._presence_detector.update(pframe)
+                            motion_score = float(self._presence_detector.presence_score)
+                            motion_sample_fresh = True
                     else:
                         coverage = signals.beige  # ROI de conteo como presencia
                         motion_present = self._presence_detector.update(presence_source_frame)
+                        motion_score = float(self._presence_detector.presence_score)
+                        motion_sample_fresh = True
 
                     # Producción activa: cuando el buffer slow-window está lleno, usar SOLO
                     # movimiento como señal (evita que tela estática en el ROI mantenga
@@ -925,13 +944,26 @@ class DetectorService:
                         self._handle_stop_action(action)
 
                     self._last_beige_ratio  = round(float(signals.beige), 4)
-                    self._last_motion_score = round(float(self._presence_detector.presence_score), 4)
+                    self._last_motion_score = round(motion_score, 4)
 
                     fusion_score = self.fusion.fuse(signals)
                     self._last_fusion_score = fusion_score
                     self._last_detecting    = self.fsm._state.value != 'idle'
 
-                    event_type = self.fsm.process(fusion_score, signals.beige)
+                    event_type = self.fsm.process(
+                        fusion_score,
+                        signals.beige,
+                        motion_score,
+                        fast_activity=(
+                            signals.flow >= self.fusion.flow_gate
+                            or fusion_score >= self.fsm.config.garment_score_threshold
+                        ),
+                        slow_activity=(
+                            motion_sample_fresh
+                            and self._presence_detector.is_warmed_up
+                            and self._presence_detector.motion_now
+                        ),
+                    )
                     if event_type == 'CALIBRATE':
                         self._calibrate_beige_from_roi(roi_frame)
                     elif event_type:
@@ -941,6 +973,12 @@ class DetectorService:
 
                     if self.oee.should_emit():
                         self._emit_oee(self.oee.snapshot())
+            except EventOutputError:
+                self._logger.critical(
+                    'Durable event output rejected an event; stopping detector',
+                    exc_info=True,
+                )
+                raise
             except Exception:
                 self._logger.exception('Error processing frame')
 
@@ -980,6 +1018,12 @@ class DetectorService:
             self._logger.warning('Fallo calibración beige — se mantiene rango por defecto')
 
     def _emit_event(self, event_type: str, signals: SignalValues, confidence: float) -> None:
+        cycle = self.fsm.last_event_metadata
+        event_confidence = max(
+            float(confidence),
+            float(cycle.get('max_fusion', 0.0)),
+            float(cycle.get('max_motion', 0.0)),
+        )
         event = {
             'event_id': str(uuid.uuid4()),
             'device_id': self.device_id,
@@ -987,8 +1031,10 @@ class DetectorService:
             'timestamp': datetime.now(timezone.utc).isoformat(),
             'payload': {
                 'line_code': self._line_code,
-                'confidence': float(confidence),
+                'confidence': event_confidence,
                 'roi_id': 'default',
+                'fsm_state': self.fsm.state.value,
+                'cycle': cycle,
                 'signals': {
                     'edge': float(signals.edge),
                     'color': float(signals.color),
@@ -998,7 +1044,10 @@ class DetectorService:
             }
         }
         
-        self.event_output.send_event(event)
+        if not self.event_output.send_event(event):
+            raise EventOutputError(
+                f"Detector event {event['event_id']} was rejected"
+            )
 
     def _emit_oee(self, oee_data: dict) -> None:
         # Acumular valores en dict para evitar duplicados al hacer merge.
@@ -1046,7 +1095,7 @@ class DetectorService:
         # Enriquecer con MERMA actual de sync_variables (la tablet lo escribe)
         values['MERMA'] = self._fetch_merma()
 
-        # Enriquecer con características del producto activo (MARCA, SABOR, etc.)
+        # Enriquecer con atributos textiles del producto activo.
         product_attrs = self._fetch_product_attrs()
         values.update(product_attrs)
 
@@ -1078,7 +1127,10 @@ class DetectorService:
                 'data': data
             }
         }
-        self.event_output.send_event(event)
+        if not self.event_output.send_event(event):
+            raise EventOutputError(
+                f"OEE event {event['event_id']} was rejected"
+            )
         self._save_last_oee_time()
 
     def _fetch_stop_durations(self, interval_s: int) -> Dict[str, int]:
@@ -1186,7 +1238,8 @@ class DetectorService:
                         # JSON encodes dict keys as strings
                         val = (prod['valores'].get(var_id)
                                or prod['valores'].get(str(var_id), ''))
-                        result[clave] = str(val) if val else ''
+                        if clave in _OEE_PRODUCT_ATTR_KEYS:
+                            result[clave] = str(val) if val else ''
                     return result
             return {}
         except Exception as exc:
@@ -1254,10 +1307,13 @@ class DetectorService:
         now = datetime.now(timezone.utc)
         boot_year = now.year
         if boot_year < 2024:
-            self._logger.warning(
+            self._logger.critical(
                 'System clock appears incorrect (year=%d). '
-                'Ensure NTP/systemd-timesyncd is active for correct event ordering.',
+                'Detector startup is blocked until NTP/systemd-timesyncd is active.',
                 boot_year
+            )
+            raise RuntimeError(
+                f'System clock is not valid for event timestamps: {now.isoformat()}'
             )
         else:
             self._logger.info('System clock OK: %s', now.isoformat())
@@ -1309,11 +1365,8 @@ class DetectorService:
             self._presence_beige_signal = None
             self._presence_detector.reset()
 
-        # Modo de detección → pesos de fusión por defecto según modo.
-        mode = config.get('mode', 'textil')
-        from ..domain.fusion.fusion_engine import MODE_WEIGHTS, _DEFAULT_WEIGHTS
-        mode_weights = MODE_WEIGHTS.get(mode, _DEFAULT_WEIGHTS)
-        self.fusion.update_weights(mode_weights)
+        # Restablecer el perfil textil antes de aplicar un override opcional.
+        self.fusion.update_weights(TEXTILE_WEIGHTS)
 
         thresholds = config.get('thresholds', {})
         self.edge_signal.threshold        = thresholds.get('edge',  0.4)
@@ -1322,8 +1375,6 @@ class DetectorService:
         self.beige_signal.threshold       = thresholds.get('beige', 0.35)
         # thresholds.flow actúa como gate de fusión: si flow < flow_gate → score=0
         self.fusion.flow_gate             = thresholds.get('flow',  0.5)
-        self.fsm.config.high_threshold    = thresholds.get('high',  0.7)
-        self.fsm.config.low_threshold     = thresholds.get('low',   0.3)
 
         # Pesos de fusión custom (override de los del modo si se envían).
         custom_weights = config.get('weights')
@@ -1374,11 +1425,81 @@ class DetectorService:
                 )
 
         fsm_config = config.get('fsm', {})
-        self.fsm.config.n_frames             = fsm_config.get('n_frames', 3)
-        self.fsm.config.cooldown_frames      = fsm_config.get('cooldown', 8)
-        self.fsm.config.exit_frames          = fsm_config.get('exit_frames', 5)
-        self.fsm.config.max_wait_exit_frames = fsm_config.get('max_wait_exit_frames', 10000)
-        self.fsm.config.min_rearm_s          = float(fsm_config.get('min_rearm_s', 3.0))
+        # Build and validate atomically: an invalid remote update cannot leave
+        # a partially-mutated FSM running. Legacy values are accepted but
+        # clamped to the safe textile pilot envelope.
+        effective_fsm = FSMConfig(
+            calibration_frames=max(
+                1,
+                int(fsm_config.get('calibration_frames', 20)),
+            ),
+            beige_high=float(fsm_config.get('beige_high', 0.55)),
+            beige_low=float(fsm_config.get('beige_low', 0.30)),
+            beige_confirm_frames=max(
+                10,
+                int(fsm_config.get(
+                    'beige_confirm_frames',
+                    fsm_config.get('n_frames', 10),
+                )),
+            ),
+            beige_confirm_s=max(
+                2.0,
+                float(fsm_config.get('beige_confirm_s', 2.0)),
+            ),
+            beige_exit_frames=max(
+                8,
+                int(fsm_config.get(
+                    'beige_exit_frames',
+                    fsm_config.get('exit_frames', 8),
+                )),
+            ),
+            garment_evidence_frames=max(
+                3,
+                int(fsm_config.get('garment_evidence_frames', 3)),
+            ),
+            activity_window_s=max(
+                1.0,
+                float(fsm_config.get('activity_window_s', 5.0)),
+            ),
+            garment_score_threshold=max(
+                0.0,
+                float(fsm_config.get('garment_score_threshold', 0.20)),
+            ),
+            garment_motion_threshold=max(
+                0.0,
+                float(fsm_config.get('garment_motion_threshold', 0.02)),
+            ),
+            slow_motion_guard_frames=max(
+                1,
+                int(fsm_config.get(
+                    'slow_motion_guard_frames',
+                    self._presence_detector.window_frames,
+                )),
+            ),
+            min_garment_s=max(
+                30.0,
+                float(fsm_config.get('min_garment_s', 30.0)),
+            ),
+            rearm_beige_frames=max(
+                25,
+                int(fsm_config.get(
+                    'rearm_beige_frames',
+                    fsm_config.get('cooldown', 25),
+                )),
+            ),
+            rearm_beige_s=max(
+                2.0,
+                float(fsm_config.get('rearm_beige_s', 2.0)),
+            ),
+            min_rearm_s=max(
+                300.0,
+                float(fsm_config.get('min_rearm_s', 300.0)),
+            ),
+        )
+        effective_fsm.validate()
+        self.fsm.config = effective_fsm
+        # A config change in the middle of a candidate is fail-closed.
+        self.fsm.reset()
 
         camera = config.get('camera')
         if camera and isinstance(camera, dict):

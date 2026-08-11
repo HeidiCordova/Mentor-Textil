@@ -47,19 +47,32 @@ func (h *ProductionRunHandler) Upsert(c *gin.Context) {
 		return
 	}
 
+	scope, hasScope := multitenancy.ScopeFrom(c.Request.Context())
+	if !hasScope || scope.LineaID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "linea_id and planta_id scope are required"})
+		return
+	}
+	if req.LineaID != nil && *req.LineaID != scope.LineaID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "body linea_id does not match request scope"})
+		return
+	}
+	lineaID := scope.LineaID
+	req.LineaID = &lineaID
+
 	// Generar run_id si no se proporcionó (ej: tablet cloud crea nuevo run)
 	if req.RunID == "" {
 		req.RunID = uuid.New().String()
 	}
 
 	// Asignar device_id si está vacío
-	if req.DeviceID == "" {
-		if req.LineaID != nil {
-			req.DeviceID = fmt.Sprintf("cloud-linea-%d", *req.LineaID)
-		} else {
-			req.DeviceID = "cloud"
-		}
+	edgeDeviceID, err := h.findEdgeDeviceID(c.Request.Context(), lineaID)
+	if err != nil {
+		c.JSON(http.StatusConflict, gin.H{
+			"error": "the selected line has no registered edge device",
+		})
+		return
 	}
+	req.DeviceID = edgeDeviceID
 
 	// Llenar empresa_id desde JWT si no viene en el body
 	if req.EmpresaID == nil {
@@ -83,9 +96,7 @@ func (h *ProductionRunHandler) Upsert(c *gin.Context) {
 	}
 
 	// Encolar pending_command para propagar al edge si el upsert vino del cloud tablet
-	if strings.HasPrefix(pr.DeviceID, "cloud-") {
-		h.enqueueEdgeSync(c.Request.Context(), pr)
-	}
+	h.enqueueEdgeSync(c.Request.Context(), pr, edgeDeviceID)
 
 	c.JSON(http.StatusOK, []domain.ProductionRun{*pr})
 }
@@ -140,7 +151,30 @@ func parseProductionRunFilter(c *gin.Context) ports.ProductionRunFilter {
 
 // enqueueEdgeSync inserta un pending_command para que el enviador del edge
 // aplique la asignación de producto realizada desde el cloud tablet.
-func (h *ProductionRunHandler) enqueueEdgeSync(ctx context.Context, pr *domain.ProductionRun) {
+func (h *ProductionRunHandler) findEdgeDeviceID(ctx context.Context, lineaID int) (string, error) {
+	var deviceID string
+	err := h.pr.Master().QueryRow(ctx,
+		`SELECT device_id
+		   FROM gateway.device_registry
+		  WHERE linea_id=$1
+		  ORDER BY active DESC, last_seen_at DESC NULLS LAST
+		  LIMIT 1`,
+		lineaID,
+	).Scan(&deviceID)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(deviceID) == "" {
+		return "", fmt.Errorf("empty device_id")
+	}
+	return deviceID, nil
+}
+
+func (h *ProductionRunHandler) enqueueEdgeSync(
+	ctx context.Context,
+	pr *domain.ProductionRun,
+	edgeDeviceID string,
+) {
 	pool, schema, err := h.pr.Resolve(ctx)
 	if err != nil {
 		log.Printf("[production_run_handler] warn: resolve for pending_command: %v", err)
@@ -155,23 +189,22 @@ func (h *ProductionRunHandler) enqueueEdgeSync(ctx context.Context, pr *domain.P
 	if !ok {
 		return
 	}
-	var edgeDeviceID string
-	err = h.pr.Master().QueryRow(ctx,
-		`SELECT device_id FROM gateway.device_registry WHERE linea_id=$1 AND active=true LIMIT 1`,
-		scope.LineaID,
-	).Scan(&edgeDeviceID)
-	if err != nil || edgeDeviceID == "" {
-		log.Printf("[production_run_handler] warn: no edge device for linea %d: %v", scope.LineaID, err)
-		return
+	if edgeDeviceID == "" {
+		edgeDeviceID, err = h.findEdgeDeviceID(ctx, scope.LineaID)
+		if err != nil {
+			log.Printf("[production_run_handler] warn: no edge device for linea %d: %v", scope.LineaID, err)
+			return
+		}
 	}
 
 	pcTbl := multitenancy.Tbl(schema, "analytics.pending_commands")
 	payload, _ := json.Marshal(map[string]interface{}{
-		"run_id":     pr.RunID,
-		"sku":        pr.SKU,
-		"nombre":     pr.Nombre,
-		"started_at": pr.StartedAt,
-		"ended_at":   pr.EndedAt,
+		"run_id":      pr.RunID,
+		"producto_id": pr.ProductoID,
+		"sku":         pr.SKU,
+		"nombre":      pr.Nombre,
+		"started_at":  pr.StartedAt,
+		"ended_at":    pr.EndedAt,
 	})
 	if _, err := pool.Exec(ctx, fmt.Sprintf(`
 		INSERT INTO %s (device_id, command, payload)

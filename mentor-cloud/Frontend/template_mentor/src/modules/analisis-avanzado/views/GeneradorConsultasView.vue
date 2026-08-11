@@ -59,24 +59,22 @@ const lineasFiltradas = computed(() => {
   )
 })
 
-// ── Modo de la línea seleccionada (botellas=5min / textil=30min) ───────────────
-const modoLinea = computed(() => {
-  const l = todasLineas.value.find(x => x.id === parseInt(lineaSeleccionada.value))
-  if (!l) return 'botellas'
-  return l.mode || l.modo || l.detection_mode || 'botellas'
-})
-// Paso de minutos: textil → 30, botellas → 5
-const pasoMin = computed(() => modoLinea.value === 'textil' ? 30 : 5)
-// Máximo índice de paso de minutos: textil → 1 (0 o 30), botellas → 11 (0..55)
-const maxMinIdx = computed(() => modoLinea.value === 'textil' ? 1 : 11)
+// El flujo textil trabaja con snapshots cada 30 minutos.
+const modoLinea = computed(() => 'textil')
+const pasoMin = computed(() => 30)
+const maxMinIdx = computed(() => 1)
 
 // ── Fechas (sliders separados) ─────────────────────────────────────────────
 const pad2 = n => String(n).padStart(2, '0')
 
 // Configuración de intervalo adaptativa según modo de línea
-const intervalConfig = computed(() => modoLinea.value === 'textil'
-  ? { msStep: 1800000, sliderMax: 1, minuteMultiplier: 30, divisor: 30, minIntervalS: 1800 }
-  : { msStep: 300000,  sliderMax: 11, minuteMultiplier: 5,  divisor: 5,  minIntervalS: 300  })
+const intervalConfig = computed(() => ({
+  msStep: 1800000,
+  sliderMax: 1,
+  minuteMultiplier: 30,
+  divisor: 30,
+  minIntervalS: 1800
+}))
 
 function roundDownInterval(d) {
   const ms = d.getTime()
@@ -118,7 +116,7 @@ const fechaFin    = computed(() => `${finFecha.value}T${finHora.value}:${finMinu
 watch(intervalConfig, () => {
   inicioMinIdx.value = Math.min(inicioMinIdx.value, intervalConfig.value.sliderMax)
   finMinIdx.value    = Math.min(finMinIdx.value,    intervalConfig.value.sliderMax)
-  agrupamientoSeleccionado.value = modoLinea.value === 'textil' ? '30min' : '5min'
+  agrupamientoSeleccionado.value = '30min'
 })
 
 // ── Estado del gráfico ───────────────────────────────────────────────────────

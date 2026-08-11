@@ -63,13 +63,13 @@ func (r *DashboardRepo) GetStats(ctx context.Context, empresaID *int) (*domain.D
 	})
 	g.Go(func() error {
 		return pool.QueryRow(gctx,
-			fmt.Sprintf(`SELECT COALESCE(AVG(oee), 0) FROM %s WHERE fecha=$1 AND interval_s >= 300`, oeeTbl),
+			fmt.Sprintf(`SELECT COALESCE(AVG(oee), 0) FROM %s WHERE fecha=$1 AND interval_s >= 1800`, oeeTbl),
 			today,
 		).Scan(&stats.EficienciaPromedio)
 	})
 	g.Go(func() error {
 		return pool.QueryRow(gctx,
-			fmt.Sprintf(`SELECT COALESCE(SUM(produccion), 0) FROM %s WHERE fecha=$1 AND interval_s >= 300`, oeeTbl),
+			fmt.Sprintf(`SELECT COALESCE(SUM(produccion), 0) FROM %s WHERE fecha=$1 AND interval_s >= 1800`, oeeTbl),
 			today,
 		).Scan(&stats.ProduccionHoy)
 	})
@@ -115,7 +115,7 @@ func (r *DashboardRepo) GetCharts(ctx context.Context, empresaID *int) (*domain.
 		} else {
 			q = fmt.Sprintf(`SELECT TO_CHAR(fecha, 'TMMonth'), COALESCE(SUM(produccion), 0)
 				FROM %s
-				WHERE interval_s >= 300 AND fecha >= NOW() - INTERVAL '12 months'
+				WHERE interval_s >= 1800 AND fecha >= NOW() - INTERVAL '12 months'
 				GROUP BY DATE_TRUNC('month', fecha), TO_CHAR(fecha, 'TMMonth')
 				ORDER BY DATE_TRUNC('month', fecha)`, oeeTbl)
 		}
@@ -138,7 +138,7 @@ func (r *DashboardRepo) GetCharts(ctx context.Context, empresaID *int) (*domain.
 		rows, err := pool.Query(gctx, fmt.Sprintf(`
 			SELECT TO_CHAR(hora, 'HH24:MI'), COALESCE(AVG(energia_kwh), 0)
 			FROM %s
-			WHERE interval_s >= 300 AND fecha = CURRENT_DATE
+			WHERE interval_s >= 1800 AND fecha = CURRENT_DATE
 			GROUP BY DATE_TRUNC('hour', hora), TO_CHAR(hora, 'HH24:MI')
 			ORDER BY DATE_TRUNC('hour', hora)`, oeeTbl))
 		if err != nil {
@@ -175,7 +175,7 @@ func (r *DashboardRepo) GetReports(ctx context.Context, empresaID *int, from, to
 
 	query := fmt.Sprintf(`
 		SELECT fecha::text, COALESCE(SUM(produccion), 0), 'Programada'
-		FROM %s WHERE interval_s >= 300`, oeeTbl)
+		FROM %s WHERE interval_s >= 1800`, oeeTbl)
 	args := []interface{}{}
 	idx := 1
 

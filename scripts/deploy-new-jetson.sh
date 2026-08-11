@@ -21,7 +21,7 @@
 #     --cloud-linea-id 14 \
 #     --cloud-url    http://152.53.253.59:8888 \
 #     --cloud-db-url "postgresql://mentor:mentor2026@152.53.253.59:5432/mentor_cloud" \
-#     --line-name    "LINEA1 — CocaCola" \
+#     --line-name    "LINEA1 — Confección" \
 #     --camera-url   "rtsp://user:pass@192.168.100.32:554/stream2" \
 #     [--jetson-user orin] [--jetson-pass 123456] [--tz America/Lima]
 #

@@ -355,8 +355,15 @@ async function handleCreateStop(stopType: StopType, categoriaId: number, categor
   }).catch(() => {})
 }
 
-function handleAssignProduct(sku: string | null, description: string | null, startMs: number, endMs: number): void {
+function handleAssignProduct(
+  productoId: number | null,
+  sku: string | null,
+  description: string | null,
+  startMs: number,
+  endMs: number
+): void {
   productionRunsStore.upsert({
+    producto_id: productoId ?? undefined,
     sku: sku ?? undefined,
     nombre: description ?? undefined,
     started_at: new Date(startMs).toISOString(),

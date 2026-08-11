@@ -370,7 +370,7 @@ SELECT DATE_TRUNC('month', fecha) AS mes,
        SUM(produccion)            AS total,
        AVG(oee)                   AS oee_promedio
 FROM {schema}.oee_snapshots
-WHERE interval_s >= 300
+WHERE interval_s >= 1800
 GROUP BY DATE_TRUNC('month', fecha);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_prod_mes ON {schema}.mv_produccion_mensual(mes);
@@ -381,7 +381,6 @@ INSERT INTO {schema}.variables (nombre, unidad, tipo, activo) VALUES
   ('Material', '', 'catalogo', true),
   ('Destino',  '', 'catalogo', true),
   ('Marca',    '', 'catalogo', true),
-  ('Sabor',    '', 'catalogo', true),
   ('Tamaño',   '', 'catalogo', true)
 ON CONFLICT DO NOTHING;
 

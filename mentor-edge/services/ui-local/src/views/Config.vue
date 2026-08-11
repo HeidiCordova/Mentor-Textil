@@ -89,7 +89,6 @@
               <label class="label-field">Modo de Deteccion <HelpTip :text="tips.mode" /></label>
               <select v-model="config.mode" class="mt-1 input-field">
                 <option value="textil">Textil</option>
-                <option value="botellas">Botellas</option>
               </select>
             </div>
             <div>
@@ -272,17 +271,17 @@
         <div class="flex items-center justify-between mb-2">
           <div></div>
           <button
-            @click="config.mode === 'botellas' ? openYoloLab() : openLab()"
-            :disabled="config.mode !== 'botellas' && !camera.url"
+            @click="openLab"
+            :disabled="!camera.url"
             class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-            :class="config.mode === 'botellas' ? 'bg-violet-600 hover:bg-violet-500 text-white' : camera.url ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-slate-700 text-gray-500 cursor-not-allowed'"
-            :title="config.mode === 'botellas' ? 'Ver stream YOLO en vivo' : 'Abrir Modo Lab — configuración con vista en vivo de cámara'">
+            :class="camera.url ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-slate-700 text-gray-500 cursor-not-allowed'"
+            title="Abrir Modo Lab — configuración con vista en vivo de cámara">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M9 3H5a2 2 0 00-2 2v4m0 0h18M3 9v10a2 2 0 002 2h5m4 0h5a2 2 0 002-2V9M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/>
             </svg>
-            {{ config.mode === 'botellas' ? 'Lab YOLO' : 'Modo Lab' }}
-            <span v-if="config.mode !== 'botellas' && !camera.url" class="text-[10px] font-normal text-gray-500">Requiere URL de cámara</span>
+            Modo Lab
+            <span v-if="!camera.url" class="text-[10px] font-normal text-gray-500">Requiere URL de cámara</span>
           </button>
         </div>
 
@@ -324,98 +323,7 @@
           </div>
         </div>
 
-        <!-- Configuración YOLO — visible solo en modo botellas -->
-        <template v-if="config.mode === 'botellas'">
-          <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono bg-violet-900/30 border border-violet-700/40 text-violet-300">
-            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-            </svg>
-            <span>Detector YOLO activo — conteo por visión artificial</span>
-            <span v-if="yoloStatus" class="ml-auto text-emerald-400 font-semibold">Conteo: {{ yoloStatus.total_count }}</span>
-          </div>
-          <div class="card">
-            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <div>
-                <label class="label-field">Modelo</label>
-                <select v-model="yolo.model_name" class="mt-1 input-field font-mono">
-                  <option value="yolo26s">YOLO26s (rapido)</option>
-                  <option value="yolo26m">YOLO26m (equilibrado)</option>
-                  <option value="yolo26l">YOLO26l (preciso)</option>
-                  <option value="custom">Modelo personalizado</option>
-                </select>
-              </div>
-              <div>
-                <label class="label-field">Confianza minima</label>
-                <div class="flex items-center gap-2 mt-1">
-                  <input v-model.number="yolo.confidence" type="range" min="0.1" max="0.95" step="0.05" class="flex-1 accent-violet-500">
-                  <span class="w-12 text-right text-sm font-mono text-white">{{ yolo.confidence.toFixed(2) }}</span>
-                </div>
-              </div>
-              <div>
-                <label class="label-field">Resolucion de inferencia</label>
-                <select v-model.number="yolo.imgsz" class="mt-1 input-field font-mono">
-                  <option :value="320">320px</option>
-                  <option :value="480">480px</option>
-                  <option :value="640">640px (recomendado)</option>
-                  <option :value="960">960px</option>
-                </select>
-              </div>
-              <div>
-                <label class="label-field">TensorRT (GPU)</label>
-                <select v-model="yolo.use_tensorrt" class="mt-1 input-field">
-                  <option :value="true">Activado (optimizado para Jetson)</option>
-                  <option :value="false">Desactivado (PyTorch FP32)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div class="card">
-            <h3 class="section-title">Linea de conteo</h3>
-            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <div>
-                <label class="label-field">Posicion vertical (ratio)</label>
-                <div class="flex items-center gap-2 mt-1">
-                  <input v-model.number="yolo.counting_line_y" type="range" min="0.1" max="0.9" step="0.05" class="flex-1 accent-emerald-500">
-                  <span class="w-12 text-right text-sm font-mono text-white">{{ yolo.counting_line_y.toFixed(2) }}</span>
-                </div>
-              </div>
-              <div>
-                <label class="label-field">Direccion de cruce</label>
-                <select v-model="yolo.counting_direction" class="mt-1 input-field">
-                  <option value="top_to_bottom">Arriba hacia abajo</option>
-                  <option value="bottom_to_top">Abajo hacia arriba</option>
-                </select>
-              </div>
-            </div>
-            <div class="mt-4 bg-slate-900 rounded p-3">
-              <svg viewBox="0 0 400 100" class="w-full" style="height:100px">
-                <rect x="0" y="0" width="400" height="100" rx="4" fill="#1e293b"/>
-                <line x1="0" :y1="yolo.counting_line_y * 100" x2="400" :y2="yolo.counting_line_y * 100" stroke="#10b981" stroke-width="2" stroke-dasharray="6 3"/>
-                <text x="10" :y="yolo.counting_line_y * 100 - 6" fill="#10b981" font-size="10" font-family="monospace">Counting Line ({{ (yolo.counting_line_y * 100).toFixed(0) }}%)</text>
-                <text x="340" y="94" fill="#64748b" font-size="9" font-family="monospace">{{ yolo.counting_direction === 'top_to_bottom' ? 'v' : '^' }}</text>
-              </svg>
-            </div>
-          </div>
-          <div class="card">
-            <h3 class="section-title">Clases personalizadas</h3>
-            <p class="text-xs text-gray-500 mb-3">Nombres de clases para deteccion por vocabulario. Dejar vacio para usar clases COCO.</p>
-            <div class="flex flex-wrap gap-2 mb-3">
-              <span v-for="(cls, i) in yolo.class_names" :key="i"
-                class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-violet-900/40 border border-violet-700/30 rounded text-xs text-violet-300 font-mono">
-                {{ cls }}
-                <button @click="yolo.class_names.splice(i, 1)" class="text-violet-500 hover:text-red-400 ml-1">&times;</button>
-              </span>
-              <span v-if="yolo.class_names.length === 0" class="text-xs text-gray-600 italic">Sin clases personalizadas (clases COCO)</span>
-            </div>
-            <div class="flex gap-2">
-              <input v-model="newClassName" type="text" class="input-field flex-1 font-mono text-xs" placeholder="ej: botellon de agua 7 litros" @keyup.enter="addClassName">
-              <button @click="addClassName" class="btn-secondary text-xs px-3">Agregar</button>
-            </div>
-          </div>
-        </template>
-
-        <!-- Detección clásica — visible solo en modo textil -->
-        <template v-if="config.mode !== 'botellas'">
+        <!-- Detección textil -->
         <div class="card">
           <h3 class="section-title">Umbrales de Deteccion <HelpTip :text="tips.thresholds" /></h3>
           <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -515,19 +423,14 @@
             </svg>
           </div>
         </div>
-        </template><!-- end textil detection -->
       </template><!-- end detection section -->
 
       <!-- OEE -->
       <template v-if="activeSection === 'oee'">
-        <!-- Banner de preset activo -->
-        <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono"
-          :class="config.mode === 'textil'
-            ? 'bg-indigo-900/30 border border-indigo-700/40 text-indigo-300'
-            : 'bg-amber-900/30 border border-amber-700/40 text-amber-300'">
+        <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono bg-indigo-900/30 border border-indigo-700/40 text-indigo-300">
           <span>Modo activo:</span>
-          <span class="font-semibold">{{ config.mode === 'textil' ? 'Textil — umbral micro 2min, snapshot 30min' : 'Botellas — umbral micro 3.5min, snapshot 5min' }}</span>
-          <span class="ml-auto text-gray-500">Los valores se aplican automáticamente al cambiar modo en Dispositivo.</span>
+          <span class="font-semibold">Textil — umbral micro 2min, snapshot 30min</span>
+          <span class="ml-auto text-gray-500">Configuración OEE de la línea textil.</span>
         </div>
 
         <div class="card">
@@ -542,7 +445,7 @@
             <div>
               <label class="label-field">Límite parada <HelpTip :text="tips.stopMax" /></label>
               <div class="flex items-center space-x-2 mt-1">
-                <input v-model.number="oee.stop_max_s" type="range" min="30" max="7200" step="30" class="flex-1 accent-red-500">
+                <input v-model.number="oee.stop_max_s" type="range" min="30" max="86400" step="30" class="flex-1 accent-red-500">
                 <span class="w-20 text-right text-sm font-mono text-white">{{ fmtSeg(oee.stop_max_s) }}</span>
               </div>
             </div>
@@ -582,378 +485,6 @@
         </div>
       </template>
 
-      <!-- YOLO -->
-      <template v-if="activeSection === 'yolo'">
-        <div v-if="config.mode === 'botellas'" class="flex items-center gap-3 px-4 py-6 rounded-lg bg-violet-900/20 border border-violet-700/40 text-violet-300 text-sm">
-          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-          </svg>
-          <div>
-            <p class="font-semibold">Configuración YOLO integrada en Detección</p>
-            <p class="text-xs text-violet-400/70 mt-0.5">En modo Botellas, la configuración YOLO aparece en la sección <span class="font-mono">Detección</span>.</p>
-          </div>
-          <button @click="activeSection = 'detection'" class="ml-auto shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-700 hover:bg-violet-600 text-white transition-colors">
-            Ir a Detección →
-          </button>
-        </div>
-        <div v-else class="flex items-center gap-3 px-4 py-6 rounded-lg bg-amber-900/20 border border-amber-700/40 text-amber-300 text-sm">
-          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-          </svg>
-          <div>
-            <p class="font-semibold">Modo actual: {{ config.mode }}</p>
-            <p class="text-xs text-amber-400/70 mt-0.5">YOLO solo se activa en modo <span class="font-mono">botellas</span>. Cambia el modo en la seccion Dispositivo.</p>
-          </div>
-        </div>
-      </template>
-
-      <!-- YOLO Lab Modal -->
-      <teleport to="body">
-        <transition name="lab-fade">
-          <div v-if="yoloLabOpen" class="fixed inset-0 z-[9998] flex flex-col bg-slate-950 overflow-hidden">
-
-            <!-- Header -->
-            <div class="flex items-center justify-between px-5 py-3 border-b border-slate-700/70 shrink-0 bg-slate-900">
-              <div class="flex items-center gap-3">
-                <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                </svg>
-                <span class="text-sm font-semibold text-white tracking-wide">Lab YOLO</span>
-                <span class="text-xs text-gray-500 font-mono">{{ deviceId }} · Línea {{ lineaId }}</span>
-              </div>
-              <div class="flex items-center gap-3">
-                <span v-if="yoloLabSaved" class="text-xs text-green-400 font-mono transition-opacity">Guardado ✓</span>
-                <button @click="yoloLabConfirmOpen = true" :disabled="yoloLabSaving"
-                  class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50 transition-colors">
-                  <svg class="w-4 h-4" :class="yoloLabSaving ? 'animate-spin' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path v-if="!yoloLabSaving" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
-                    <circle v-else class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                  </svg>
-                  {{ yoloLabSaving ? 'Guardando...' : 'Guardar' }}
-                </button>
-                <button @click="() => { sendYoloPreview(yolo); yoloLabOpen = false }"
-                  class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-slate-700 transition-colors">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                  Cerrar
-                </button>
-              </div>
-            </div>
-
-            <!-- Split body -->
-            <div class="flex flex-1 min-h-0">
-
-              <!-- Panel izquierdo: controles YOLO -->
-              <div class="w-[360px] shrink-0 flex flex-col border-r border-slate-700/60 bg-slate-900 overflow-y-auto">
-                <div class="p-5 space-y-6">
-
-                  <!-- Confianza -->
-                  <section>
-                    <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-3">Deteccion</h3>
-                    <div class="space-y-4">
-                      <div>
-                        <div class="flex justify-between mb-1">
-                          <label class="label-field text-xs">Confianza mínima</label>
-                          <span class="text-xs font-mono text-white">{{ labYolo.confidence.toFixed(2) }}</span>
-                        </div>
-                        <input v-model.number="labYolo.confidence" type="range" min="0.1" max="0.95" step="0.01" class="w-full accent-violet-500">
-                        <p class="text-[10px] text-gray-600 mt-1">Umbral mínimo para considerar una detección válida. Menor = más sensible.</p>
-                      </div>
-                    </div>
-                  </section>
-
-                  <div class="border-t border-slate-700/50"></div>
-
-                  <!-- Línea de conteo -->
-                  <section>
-                    <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-3">Línea de Conteo</h3>
-                    <div class="space-y-3">
-                      <!-- Dirección primero -->
-                      <div>
-                        <label class="label-field text-xs mb-1 block">Dirección de movimiento</label>
-                        <select v-model="labYolo.counting_direction" class="input-field text-sm">
-                          <option value="top_to_bottom">↓ De arriba hacia abajo</option>
-                          <option value="bottom_to_top">↑ De abajo hacia arriba</option>
-                          <option value="right_to_left">← De derecha a izquierda</option>
-                          <option value="left_to_right">→ De izquierda a derecha</option>
-                        </select>
-                      </div>
-                      <!-- Slider Y (modo vertical) -->
-                      <div v-if="!isHorizontalDir(labYolo.counting_direction)">
-                        <div class="flex justify-between mb-1">
-                          <label class="label-field text-xs">Posición Y (relativa)</label>
-                          <span class="text-xs font-mono text-white">{{ labYolo.counting_line_y.toFixed(2) }}</span>
-                        </div>
-                        <input v-model.number="labYolo.counting_line_y" type="range" min="0.05" max="0.95" step="0.01" class="w-full accent-yellow-500">
-                      </div>
-                      <!-- Slider X (modo horizontal) -->
-                      <div v-else>
-                        <div class="flex justify-between mb-1">
-                          <label class="label-field text-xs">Posición X (relativa)</label>
-                          <span class="text-xs font-mono text-white">{{ labYolo.counting_line_x.toFixed(2) }}</span>
-                        </div>
-                        <input v-model.number="labYolo.counting_line_x" type="range" min="0.05" max="0.95" step="0.01" class="w-full accent-yellow-500">
-                      </div>
-                      <!-- Preview SVG -->
-                      <div class="bg-slate-800 rounded overflow-hidden" style="height:70px">
-                        <svg viewBox="0 0 280 70" class="w-full h-full">
-                          <rect x="0" y="0" width="280" height="70" fill="#0f172a"/>
-                          <!-- Modo horizontal: objetos se mueven de lado -->
-                          <template v-if="isHorizontalDir(labYolo.counting_direction)">
-                            <rect x="15" y="8"  width="30" height="18" rx="3" fill="#7c3aed" opacity="0.4"/>
-                            <rect x="115" y="24" width="30" height="18" rx="3" fill="#7c3aed" opacity="0.4"/>
-                            <rect x="205" y="14" width="30" height="18" rx="3" fill="#7c3aed" opacity="0.4"/>
-                            <line :x1="labYolo.counting_line_x * 280" y1="0" :x2="labYolo.counting_line_x * 280" y2="70"
-                              stroke="#facc15" stroke-width="2" stroke-dasharray="6 3"/>
-                            <text :x="labYolo.counting_line_x * 280 + 3" y="10" fill="#facc15" font-size="8" font-family="monospace">X={{ labYolo.counting_line_x.toFixed(2) }}</text>
-                            <path v-if="labYolo.counting_direction === 'right_to_left'"
-                              d="M250,35 L225,35 L232,29 M225,35 L232,41" stroke="#a78bfa" stroke-width="1.5" fill="none"/>
-                            <path v-else
-                              d="M30,35 L55,35 L48,29 M55,35 L48,41" stroke="#a78bfa" stroke-width="1.5" fill="none"/>
-                          </template>
-                          <!-- Modo vertical: objetos se mueven arriba/abajo -->
-                          <template v-else>
-                            <rect x="30" y="10" width="40" height="20" rx="3" fill="#7c3aed" opacity="0.4"/>
-                            <rect x="120" y="20" width="40" height="20" rx="3" fill="#7c3aed" opacity="0.4"/>
-                            <rect x="210" y="8"  width="40" height="20" rx="3" fill="#7c3aed" opacity="0.4"/>
-                            <line x1="0" :y1="labYolo.counting_line_y * 70" x2="280" :y2="labYolo.counting_line_y * 70"
-                              stroke="#facc15" stroke-width="2" stroke-dasharray="6 3"/>
-                            <text x="4" :y="labYolo.counting_line_y * 70 - 3" fill="#facc15" font-size="8" font-family="monospace">Y={{ labYolo.counting_line_y.toFixed(2) }}</text>
-                            <path v-if="labYolo.counting_direction === 'top_to_bottom'"
-                              d="M140,5 L140,20 L135,14 M140,20 L145,14" stroke="#a78bfa" stroke-width="1.5" fill="none"/>
-                            <path v-else
-                              d="M140,65 L140,50 L135,56 M140,50 L145,56" stroke="#a78bfa" stroke-width="1.5" fill="none"/>
-                          </template>
-                        </svg>
-                      </div>
-                    </div>
-                  </section>
-
-                  <div class="border-t border-slate-700/50"></div>
-
-                  <!-- Modelo y resolución -->
-                  <section>
-                    <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-3">Modelo</h3>
-                    <div class="space-y-3">
-                      <div>
-                        <label class="label-field text-xs mb-1 block">Modelo YOLO</label>
-                        <select v-model="labYolo.model_name" class="input-field text-sm">
-                          <option value="yolo26s">yolo26s (recomendado)</option>
-                          <option value="yolov8n">yolov8n (más rápido)</option>
-                          <option value="yolov8s">yolov8s (más preciso)</option>
-                          <option value="yolov8m">yolov8m (pesado)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label class="label-field text-xs mb-1 block">Resolución de entrada (imgsz)</label>
-                        <select v-model.number="labYolo.imgsz" class="input-field text-sm">
-                          <option :value="320">320px (más rápido)</option>
-                          <option :value="416">416px</option>
-                          <option :value="640">640px (recomendado)</option>
-                          <option :value="832">832px (más lento)</option>
-                        </select>
-                      </div>
-                      <div class="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
-                        <div>
-                          <p class="text-sm text-white font-medium">TensorRT</p>
-                          <p class="text-[10px] text-gray-500 mt-0.5">Aceleración GPU (requiere warmup ~30s)</p>
-                        </div>
-                        <button @click="labYolo.use_tensorrt = !labYolo.use_tensorrt"
-                          class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0"
-                          :class="labYolo.use_tensorrt ? 'bg-violet-600' : 'bg-slate-600'">
-                          <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                            :class="labYolo.use_tensorrt ? 'translate-x-6' : 'translate-x-1'"/>
-                        </button>
-                      </div>
-                    </div>
-                  </section>
-
-                  <div class="border-t border-slate-700/50"></div>
-
-                  <div class="border-t border-slate-700/50"></div>
-
-                  <!-- Colores de tapa → Marca -->
-                  <section>
-                    <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-3">Colores de Tapa → Marca</h3>
-                    <p class="text-[10px] text-gray-500 mb-3">Asigna un nombre de marca a cada color de tapa detectado. El sistema analiza el color de la franja superior de cada botella.</p>
-                    <!-- Filas existentes -->
-                    <div class="space-y-2 mb-3">
-                      <div v-for="(brand, color) in labYolo.cap_colors" :key="color"
-                        class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full shrink-0 border border-white/20"
-                          :style="{ background: capColorToCSS(color) }"></span>
-                        <span class="text-xs font-mono text-gray-300 w-20 shrink-0">{{ color }}</span>
-                        <input :value="brand"
-                          @input="labYolo.cap_colors[color] = $event.target.value"
-                          class="input-field text-xs flex-1 py-1" placeholder="Nombre marca">
-                        <button @click="delete labYolo.cap_colors[color]" class="text-gray-500 hover:text-red-400 transition-colors shrink-0 text-lg leading-none">&times;</button>
-                      </div>
-                      <p v-if="Object.keys(labYolo.cap_colors).length === 0" class="text-xs text-gray-600 italic">Sin mapeos. Agrega uno abajo.</p>
-                    </div>
-                    <!-- Agregar nuevo mapeo -->
-                    <div class="flex items-center gap-2">
-                      <select v-model="newCapColor" class="input-field text-xs py-1">
-                        <option value="rojo">Rojo</option>
-                        <option value="naranja">Naranja</option>
-                        <option value="amarillo">Amarillo</option>
-                        <option value="verde">Verde</option>
-                        <option value="celeste">Celeste</option>
-                        <option value="azul">Azul</option>
-                        <option value="violeta">Violeta</option>
-                        <option value="rosado">Rosado</option>
-                      </select>
-                      <input v-model="newCapBrand" type="text" placeholder="Marca" class="input-field text-xs flex-1 py-1"
-                        @keydown.enter.prevent="addCapColor">
-                      <button @click="addCapColor" class="px-3 py-1.5 rounded-lg text-sm bg-slate-700 hover:bg-slate-600 text-white transition-colors shrink-0">+</button>
-                    </div>
-                  </section>
-
-                  <div class="border-t border-slate-700/50"></div>
-
-                  <!-- Clases personalizadas -->
-                  <section class="pb-4">
-                    <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-3">Clases a Detectar</h3>
-                    <p class="text-[10px] text-gray-500 mb-2">Deja vacío para detectar todas las clases del modelo. Escribe nombres de clase exactos.</p>
-                    <div class="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
-                      <span v-for="(cls, i) in labYolo.class_names" :key="cls"
-                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-violet-900/50 text-violet-300 text-xs font-mono">
-                        {{ cls }}
-                        <button @click="labYolo.class_names.splice(i, 1)" class="hover:text-red-400 transition-colors text-gray-500">×</button>
-                      </span>
-                      <span v-if="labYolo.class_names.length === 0" class="text-xs text-gray-600 italic">Todas las clases</span>
-                    </div>
-                    <div class="flex gap-2">
-                      <input id="yoloLabClassInput" type="text" placeholder="Ej: bottle" class="input-field text-sm flex-1"
-                        @keydown.enter.prevent="() => { const el = document.getElementById('yoloLabClassInput'); const v = el.value.trim(); if (v && !labYolo.class_names.includes(v)) labYolo.class_names.push(v); el.value = '' }">
-                      <button @click="() => { const el = document.getElementById('yoloLabClassInput'); const v = el.value.trim(); if (v && !labYolo.class_names.includes(v)) labYolo.class_names.push(v); el.value = '' }"
-                        class="px-3 py-2 rounded-lg text-sm bg-slate-700 hover:bg-slate-600 text-white transition-colors shrink-0">
-                        +
-                      </button>
-                    </div>
-                  </section>
-
-                </div>
-              </div>
-
-              <!-- Panel derecho: stream en vivo -->
-              <div class="flex-1 flex flex-col bg-slate-950 overflow-hidden">
-
-                <!-- Toolbar stream -->
-                <div class="flex items-center gap-3 px-4 py-2.5 border-b border-slate-700/60 shrink-0">
-                  <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold bg-red-900/60 text-red-300">
-                    <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
-                    EN VIVO
-                  </span>
-                  <span class="text-[10px] font-mono text-gray-600">yolo-counter :8006</span>
-                  <span v-if="yoloStatus" class="ml-auto text-xs font-mono text-emerald-400">
-                    Conteo acumulado: <span class="font-bold">{{ yoloStatus.total_count }}</span>
-                  </span>
-                </div>
-
-                <!-- Área del stream -->
-                <div class="flex-1 relative overflow-hidden bg-black">
-                  <img v-if="!yoloStreamError"
-                    :src="yoloStreamUrl"
-                    class="absolute inset-0 w-full h-full object-contain"
-                    alt="YOLO stream"
-                    @error="yoloStreamError = true">
-                  <div v-if="yoloStreamError"
-                    class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-gray-500">
-                    <svg class="w-12 h-12 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-                        d="M15 10l4.553-2.069A1 1 0 0121 8.876v6.248a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
-                    </svg>
-                    <p class="text-sm">No se puede conectar a yolo-counter:8006</p>
-                    <button @click="yoloStreamKey++; yoloStreamError = false"
-                      class="px-3 py-1.5 rounded text-xs bg-slate-700 hover:bg-slate-600 text-white transition-colors">
-                      Reintentar
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Status bar inferior -->
-                <div class="shrink-0 flex items-center gap-4 px-4 py-2 border-t border-slate-700/60 text-xs text-gray-500 font-mono bg-slate-900 flex-wrap">
-                  <span class="inline-flex items-center gap-1.5">
-                    <span :class="isHorizontalDir(labYolo.counting_direction) ? 'inline-block w-0.5 h-3 bg-yellow-400 rounded opacity-80' : 'inline-block w-3 h-0.5 bg-yellow-400 rounded opacity-80'"></span>
-                    Línea {{ isHorizontalDir(labYolo.counting_direction) ? 'X=' + labYolo.counting_line_x.toFixed(2) : 'Y=' + labYolo.counting_line_y.toFixed(2) }}
-                  </span>
-                  <span class="text-gray-600">·</span>
-                  <span>confianza &ge;{{ labYolo.confidence.toFixed(2) }}</span>
-                  <span class="text-gray-600">·</span>
-                  <span>{{ labYolo.model_name }} / imgsz {{ labYolo.imgsz }}</span>
-                  <span class="text-gray-600">·</span>
-                  <span :class="labYolo.use_tensorrt ? 'text-violet-400' : 'text-gray-500'">
-                    TensorRT {{ labYolo.use_tensorrt ? 'ON' : 'OFF' }}
-                  </span>
-                </div>
-
-              </div>
-            </div>
-
-            <!-- Modal confirmación de guardado -->
-            <transition name="lab-fade">
-              <div v-if="yoloLabConfirmOpen"
-                class="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-                @click.self="yoloLabConfirmOpen = false">
-                <div class="w-[460px] bg-slate-800 rounded-xl shadow-2xl border border-slate-700/70 overflow-hidden">
-
-                  <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-700/60 bg-slate-900">
-                    <svg class="w-5 h-5 text-violet-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
-                    </svg>
-                    <span class="text-sm font-semibold text-white">Confirmar guardado — Lab YOLO</span>
-                    <span class="text-xs text-gray-500 font-mono ml-auto">Línea {{ lineaId }}</span>
-                  </div>
-
-                  <div class="px-5 py-4 space-y-4">
-                    <p class="text-xs text-gray-400">Se aplicarán los siguientes parámetros YOLO al dispositivo:</p>
-                    <div class="grid grid-cols-2 gap-3 text-xs">
-                      <div class="bg-slate-900 rounded-lg p-3">
-                        <p class="text-[10px] font-semibold text-violet-400 uppercase tracking-widest mb-2">Modelo</p>
-                        <p class="font-mono text-white">{{ labYolo.model_name }}</p>
-                        <p class="text-gray-500 mt-0.5">imgsz {{ labYolo.imgsz }} · TRT {{ labYolo.use_tensorrt ? 'ON' : 'OFF' }}</p>
-                      </div>
-                      <div class="bg-slate-900 rounded-lg p-3">
-                        <p class="text-[10px] font-semibold text-violet-400 uppercase tracking-widest mb-2">Conteo</p>
-                        <p class="font-mono text-white">{{ isHorizontalDir(labYolo.counting_direction) ? 'X = ' + labYolo.counting_line_x.toFixed(2) : 'Y = ' + labYolo.counting_line_y.toFixed(2) }}</p>
-                        <p class="text-gray-500 mt-0.5">{{ { top_to_bottom: '↓ Top→Bottom', bottom_to_top: '↑ Bottom→Top', right_to_left: '← Right→Left', left_to_right: '→ Left→Right' }[labYolo.counting_direction] }}</p>
-                      </div>
-                      <div class="bg-slate-900 rounded-lg p-3 col-span-2">
-                        <p class="text-[10px] font-semibold text-violet-400 uppercase tracking-widest mb-2">Detección</p>
-                        <div class="flex gap-4 font-mono">
-                          <span>Confianza <span class="text-white">&ge;{{ labYolo.confidence.toFixed(2) }}</span></span>
-                          <span>Clases <span class="text-white">{{ labYolo.class_names.length > 0 ? labYolo.class_names.join(', ') : 'todas' }}</span></span>
-                        </div>
-                      </div>
-                    </div>
-                    <p class="text-[10px] text-yellow-500/80">Esta acción sobreescribe la configuración YOLO activa. Los cambios tienen efecto en el próximo reinicio del detector.</p>
-                  </div>
-
-                  <div class="flex items-center justify-end gap-3 px-5 py-3.5 border-t border-slate-700/60 bg-slate-900">
-                    <button @click="yoloLabConfirmOpen = false"
-                      class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-slate-700 transition-colors">
-                      Cancelar
-                    </button>
-                    <button @click="yoloLabConfirmOpen = false; saveYoloLabConfig()"
-                      class="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
-                      </svg>
-                      Sí, guardar
-                    </button>
-                  </div>
-
-                </div>
-              </div>
-            </transition>
-
-          </div>
-        </transition>
-      </teleport>
 
       <!-- CLOUD -->
       <template v-if="activeSection === 'cloud'">
@@ -2468,12 +1999,6 @@ const route  = useRoute()
 const router = useRouter()
 const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || '/api/gateway'
 
-// Presets por modo — se aplican al cambiar Modo de Deteccion
-const MODE_PRESETS = {
-  textil:   { micro_stop_max_s: 120,  stop_max_s: 1800, snapshot_interval_s: 1800, vel_unit: 'uh', vel_nominal_us: 0.00833 },  // 30 u/h
-  botellas: { micro_stop_max_s: 210,  stop_max_s: 300,  snapshot_interval_s: 300,  vel_unit: 'us', vel_nominal_us: 0.5 },
-}
-
 const svgIcon = (d) => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${d}"/></svg>`
 
 const sections = [
@@ -2482,7 +2007,6 @@ const sections = [
   { id: 'camera',    label: 'Camara',       desc: 'Configuracion RTSP y verificacion',         svg: svgIcon('M15 10l4.553-2.069A1 1 0 0121 8.876v6.248a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z') },
   { id: 'detection', label: 'Deteccion',    desc: 'ROI, umbrales, histeresis y FSM',           svg: svgIcon('M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4') },
   { id: 'oee',       label: 'OEE',          desc: 'Parametros de eficiencia de linea',         svg: svgIcon('M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z') },
-  { id: 'yolo',       label: 'YOLO',         desc: 'Conteo por vision artificial YOLO26',       svg: svgIcon('M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z') },
   { id: 'produccion', label: 'Produccion',  desc: 'Monitor en vivo con camara y contadores', svg: svgIcon('M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z') },
   { id: 'tablet',    label: 'Tablet',       desc: 'Conexion de la tablet HMI',                 svg: svgIcon('M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z') },
   { id: 'deploy',    label: 'Despliegue',   desc: 'Servicios Docker y variables del gateway', svg: svgIcon('M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4') },
@@ -2490,7 +2014,7 @@ const sections = [
 
 const tips = {
   deviceId:         'Identificador del dispositivo, guardado en la BD. Todos los servicios edge lo auto-detectan al iniciar. Puedes cambiarlo aqui y los servicios lo usaran tras reiniciar.',
-  mode:             'Algoritmo de vision artificial segun el tipo de producto que se manufactura. Cada modo ajusta los modelos y la logica de clasificacion de eventos.',
+  mode:             'El dispositivo opera con el detector textil de cortes, presencia y paradas.',
   lineName:         'Codigo de la linea de produccion que aparece en los reportes OEE y en la nube. Debe coincidir con el registro del sistema central.',
   frameBackend:     'Motor de decodificacion de video. GStreamer NVDEC aprovecha la GPU del Jetson para decodificar H.264/H.265, reduciendo la carga en CPU. Si falla, el sistema conmuta automaticamente a OpenCV.',
   cameraUrl:        'Direccion del flujo de video. Soporta RTSP para camaras IP, HTTP para MJPEG, o un indice numerico (0, 1, 2) para camaras USB conectadas al Jetson.',
@@ -2536,95 +2060,11 @@ const frameBackend   = ref('opencv')
 const config = ref({ thresholds: { edge: 0.4, color: 0.6, flow: 0.5, dy: 5.0, beige: 0.35, high: 0.7, low: 0.3, presencia_threshold: 0.05, presencia_scale: 0.005, presencia_hold: 750, presencia_window: 375, presencia_pixel_threshold: 8 }, fsm: { n_frames: 3, cooldown: 8, exit_frames: 5, max_wait_exit_frames: 50, min_rearm_s: 6.0 }, mode: 'textil', config_version: 0 })
 const roi    = ref([120, 60, 320, 200, 0])
 const camera = ref({ url: '', fps: 25 })
-const oee    = ref({ line_name: '', micro_stop_max_s: 210, stop_max_s: 300, snapshot_interval_s: 300, vel_unit: 'us', vel_nominal_us: 0.5 })
+const oee    = ref({ line_name: '', micro_stop_max_s: 120, stop_max_s: 86400, snapshot_interval_s: 1800, vel_unit: 'uh', vel_nominal_us: 0.008333333 })
 const cloud  = ref({ sync_interval_s: 300, cloud_url: 'https://api.mentoredge.io', cloud_api_key: '' })
 const tablet = ref({ host: '', port: 8090, gatewayPort: 8005 })
-const yolo   = ref({ model_name: 'yolo26s', confidence: 0.45, counting_line_y: 0.5, counting_line_x: 0.5, counting_direction: 'top_to_bottom', use_tensorrt: true, imgsz: 640, class_names: [], cap_colors: {} })
-const yoloLabOpen        = ref(false)
-const yoloLabConfirmOpen = ref(false)
-const yoloLabSaving      = ref(false)
-const yoloLabSaved       = ref(false)
-const labYolo            = ref({ model_name: 'yolo26s', confidence: 0.45, counting_line_y: 0.5, counting_line_x: 0.5, counting_direction: 'top_to_bottom', use_tensorrt: true, imgsz: 640, class_names: [], cap_colors: {} })
-const yoloStatus  = ref(null)
-const newClassName    = ref('')
-const yoloStreamKey   = ref(0)
-const yoloStreamError = ref(false)
-const yoloStreamUrl   = computed(() => `http://${window.location.hostname}:8006/lab/stream?t=${yoloStreamKey.value}`)
-const isHorizontalDir = (d) => d === 'left_to_right' || d === 'right_to_left'
-
-const _CAP_CSS = { rojo: '#ef4444', naranja: '#f97316', amarillo: '#eab308', verde: '#22c55e', celeste: '#38bdf8', azul: '#3b82f6', violeta: '#a855f7', rosado: '#f472b6' }
-const capColorToCSS = (name) => _CAP_CSS[name] || '#9ca3af'
-const newCapColor = ref('rojo')
-const newCapBrand = ref('')
-const addCapColor = () => {
-  const v = newCapBrand.value.trim()
-  if (v && newCapColor.value) {
-    labYolo.value.cap_colors[newCapColor.value] = v
-    newCapBrand.value = ''
-  }
-}
-
-const addClassName = () => {
-  const name = newClassName.value.trim()
-  if (name && !yolo.value.class_names.includes(name)) {
-    yolo.value.class_names.push(name)
-  }
-  newClassName.value = ''
-}
-
-const fetchYoloStatus = async () => {
-  try {
-    const resp = await fetch(`http://${window.location.hostname}:8006/status`)
-    if (resp.ok) yoloStatus.value = await resp.json()
-  } catch { yoloStatus.value = null }
-}
-
-const openYoloLab = () => {
-  labYolo.value = { ...yolo.value, class_names: [...(yolo.value.class_names || [])], cap_colors: { ...(yolo.value.cap_colors || {}) } }
-  yoloStreamKey.value++
-  yoloStreamError.value = false
-  yoloLabOpen.value = true
-  // Sincronizar la línea actual al abrir
-  nextTick(() => sendYoloPreview(labYolo.value))
-}
-
-let _yoloPreviewTimer = null
-const sendYoloPreview = (val) => {
-  fetch(`http://${window.location.hostname}:8006/lab/preview`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      counting_line_y: val.counting_line_y,
-      counting_line_x: val.counting_line_x,
-      counting_direction: val.counting_direction,
-      cap_colors: val.cap_colors || {},
-    }),
-  }).catch(() => {})
-}
-
-watch(labYolo, (val) => {
-  if (!yoloLabOpen.value) return
-  clearTimeout(_yoloPreviewTimer)
-  _yoloPreviewTimer = setTimeout(() => sendYoloPreview(val), 150)
-}, { deep: true })
-
-const saveYoloLabConfig = async () => {
-  yoloLabSaving.value = true
-  try {
-    await configService.updateConfig({ yolo: { ...labYolo.value } }, lineaId.value)
-    yolo.value = { ...labYolo.value }
-    yoloLabSaved.value = true
-    setTimeout(() => { yoloLabSaved.value = false }, 3000)
-    yoloLabOpen.value = false
-  } catch {
-    showMessage('Error al guardar configuración YOLO Lab', 'error')
-  } finally {
-    yoloLabSaving.value = false
-  }
-}
-
 // Valor que el operador ve/escribe en la UI (en la unidad seleccionada)
-const velNominalDisplay = ref(0.5)
+const velNominalDisplay = ref(30)
 
 // Sincronizar velNominalDisplay cuando cambia vel_unit
 watch(() => oee.value.vel_unit, (newUnit, oldUnit) => {
@@ -2639,20 +2079,6 @@ watch(() => oee.value.vel_unit, (newUnit, oldUnit) => {
 watch(velNominalDisplay, (v) => {
   const num = parseFloat(v) || 0
   oee.value.vel_nominal_us = oee.value.vel_unit === 'uh' ? num / 3600 : num
-})
-
-// Aplicar presets al cambiar el modo
-watch(() => config.value.mode, (newMode) => {
-  const preset = MODE_PRESETS[newMode]
-  if (!preset) return
-  oee.value.micro_stop_max_s    = preset.micro_stop_max_s
-  oee.value.stop_max_s          = preset.stop_max_s
-  oee.value.snapshot_interval_s = preset.snapshot_interval_s
-  oee.value.vel_unit            = preset.vel_unit
-  oee.value.vel_nominal_us      = preset.vel_nominal_us
-  velNominalDisplay.value       = preset.vel_unit === 'uh'
-    ? parseFloat((preset.vel_nominal_us * 3600).toFixed(4))
-    : preset.vel_nominal_us
 })
 
 const linesList      = ref([])
@@ -2754,6 +2180,12 @@ const cameraStatusLabel = computed(() => {
 
 function fmtSeg(s) {
   if (s < 60) return `${s}s`
+  if (s >= 86400 && s % 86400 === 0) return `${s / 86400}d`
+  if (s >= 3600) {
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    return m === 0 ? `${h}h` : `${h}h ${m}min`
+  }
   const m = Math.floor(s / 60)
   const r = s % 60
   return r === 0 ? `${m}min` : `${m}m ${r}s`
@@ -3183,10 +2615,11 @@ const loadConfig = async () => {
       configService.getConfig(lineaId.value),
       configService.getSystemDefaults(),
     ])
+    const legacyMode = data.mode !== 'textil'
     config.value = {
       thresholds: { edge: 0.4, color: 0.6, flow: 0.5, dy: 5.0, beige: 0.35, high: 0.7, low: 0.3, presencia_threshold: 0.05, presencia_scale: 0.005, presencia_hold: 750, presencia_window: 375, presencia_pixel_threshold: 8, ...data.thresholds },
       fsm: { n_frames: 3, cooldown: 8, exit_frames: 5, max_wait_exit_frames: 50, min_rearm_s: 6.0, ...data.fsm },
-      mode: data.mode || 'textil',
+      mode: 'textil',
       config_version: data.config_version || 0,
       roi_presencia: (() => {
         const rp = data.roi_presencia
@@ -3197,7 +2630,25 @@ const loadConfig = async () => {
     }
     roi.value = data.roi?.length >= 4 ? [...data.roi.slice(0, 4), data.roi[4] ?? 0] : [120, 60, 320, 200, 0]
     if (data.camera) camera.value = { url: data.camera.url || '', fps: data.camera.fps || 25 }
-    if (data.oee) oee.value = { line_name: data.oee.line_name || '', micro_stop_max_s: data.oee.micro_stop_max_s ?? 210, stop_max_s: data.oee.stop_max_s ?? 300, snapshot_interval_s: data.oee.snapshot_interval_s ?? 60, vel_unit: data.oee.vel_unit || 'us', vel_nominal_us: data.oee.vel_nominal_us ?? 0.5 }
+    if (data.oee && !legacyMode) {
+      oee.value = {
+        line_name: data.oee.line_name || '',
+        micro_stop_max_s: data.oee.micro_stop_max_s ?? 120,
+        stop_max_s: data.oee.stop_max_s ?? 86400,
+        snapshot_interval_s: data.oee.snapshot_interval_s ?? 1800,
+        vel_unit: data.oee.vel_unit || 'uh',
+        vel_nominal_us: data.oee.vel_nominal_us ?? 0.008333333,
+      }
+    } else {
+      oee.value = {
+        line_name: data.oee?.line_name || '',
+        micro_stop_max_s: 120,
+        stop_max_s: 86400,
+        snapshot_interval_s: 1800,
+        vel_unit: 'uh',
+        vel_nominal_us: 0.008333333,
+      }
+    }
     // Calcular el valor de display según la unidad
     velNominalDisplay.value = oee.value.vel_unit === 'uh'
       ? parseFloat((oee.value.vel_nominal_us * 3600).toFixed(4))
@@ -3206,7 +2657,6 @@ const loadConfig = async () => {
     const defaultCloudUrl = sysDefaults?.cloud?.url || ''
     if (data.cloud) cloud.value = { sync_interval_s: data.cloud.sync_interval_s > 0 ? data.cloud.sync_interval_s : 300, cloud_url: data.cloud.cloud_url || defaultCloudUrl, cloud_api_key: data.cloud.cloud_api_key || '' }
     if (data.tablet) tablet.value = { host: data.tablet.host || '', port: data.tablet.port ?? 8090, gatewayPort: data.tablet.gatewayPort ?? 8005 }
-    if (data.yolo) yolo.value = { model_name: data.yolo.model_name || 'yolo26s', confidence: data.yolo.confidence ?? 0.45, counting_line_y: data.yolo.counting_line_y ?? 0.5, counting_line_x: data.yolo.counting_line_x ?? 0.5, counting_direction: data.yolo.counting_direction || 'top_to_bottom', use_tensorrt: data.yolo.use_tensorrt ?? true, imgsz: data.yolo.imgsz || 640, class_names: data.yolo.class_names || [], cap_colors: data.yolo.cap_colors || {} }
     if (data.linea_id !== undefined) deploy.value.linea_id = String(data.linea_id || '')
     loadedLineaId.value = lineaId.value  // registrar qué línea está cargada
     checkCloudHealth()
@@ -3227,12 +2677,11 @@ const saveConfig = async () => {
       roi: roi.value,
       thresholds: config.value.thresholds,
       fsm: config.value.fsm,
-      mode: config.value.mode,
+      mode: 'textil',
       camera: camera.value.url ? camera.value : undefined,
       oee: oee.value,
       cloud: cloud.value,
       tablet: tablet.value,
-      yolo: config.value.mode === 'botellas' ? yolo.value : undefined,
     }, lineaId.value)
 
     if (activeSection.value === 'deploy') {
@@ -3241,19 +2690,6 @@ const saveConfig = async () => {
 
     lastSaved.value = new Date().toLocaleTimeString('es-MX')
     showMessage('Configuración guardada.', 'success')
-    // Asignar/desasignar yolo-counter según modo
-    try {
-      if (config.value.mode === 'botellas') {
-        // Esta línea usa YOLO → registrarla como la línea activa del yolo-counter
-        await configService.setSystemDefaults({ yolo_assigned_linea: parseInt(lineaId.value) })
-      } else {
-        // Si esta línea era la asignada y cambió de modo, limpiar la asignación
-        const sys = await configService.getSystemDefaults()
-        if (sys?.yolo_assigned_linea === parseInt(lineaId.value)) {
-          await configService.setSystemDefaults({ yolo_assigned_linea: 0 })
-        }
-      }
-    } catch { /* no crítico */ }
     // Si era una línea nueva, limpiar el flag ?new=1 de la URL
     if (route.query.new === '1') {
       router.replace('/config/' + lineaId.value)

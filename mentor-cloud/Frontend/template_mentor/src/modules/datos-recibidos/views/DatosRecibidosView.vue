@@ -40,7 +40,7 @@
           ⚡ Medidor Energía
         </div>
         <div v-if="modoLinea" class="modo-pill" :class="`modo-${modoLinea}`">
-          {{ modoLinea === 'botellas' ? '🍶' : '🧵' }}
+          🧵
           {{ modoLinea }} · c/{{ pasoMin }}min
         </div>
       </div>
@@ -228,13 +228,13 @@ const modoLinea = computed(() => {
 // Detección de línea de tipo Energía
 const esLineaEnergia = computed(() => lineaSeleccionada.value?.tipo === 'Energía')
 
-// Paso de minutos: textil=30min, botellas=5min
-const pasoMin = computed(() => modoLinea.value === 'botellas' ? 5 : 30)
-const maxMins = computed(() => modoLinea.value === 'botellas' ? 55 : 30)
+// El modo textil trabaja con intervalos de 30 minutos.
+const pasoMin = computed(() => 30)
+const maxMins = computed(() => 30)
 
 // Cuando cambia el modo, ajustar los minutos al múltiplo válido más cercano y respetar el nuevo máximo
 watch(pasoMin, (paso) => {
-  const nuevoMax = modoLinea.value === 'botellas' ? 55 : 30
+  const nuevoMax = 30
   desdeMins.value = Math.min(Math.round(desdeMins.value / paso) * paso, nuevoMax)
   hastaMins.value = Math.min(Math.round(hastaMins.value / paso) * paso, nuevoMax)
 })
@@ -274,12 +274,10 @@ const totalPaginas = computed(() => Math.max(1, Math.ceil(total.value / LIMITE))
 // Columnas fijas OEE en orden canónico. key = nombre en payload, label = encabezado visible.
 const COLUMNAS_FIJAS = [
   { key: 'CONTEO_1',                    label: 'Conteo Unitario Principal' },
-  { key: 'CONTEO_2',                    label: 'Conteo Unitario Principal Redundancia' },
   { key: 'T_DISPONIBLE',               label: 'Tiempo Disponible' },
   { key: 'T_MICROPARADA',              label: 'Tiempo de Microparada' },
   { key: 'T_PARADA_NO_ASIGNADA',       label: 'Tiempo de Parada No Asignada' },
   { key: 'MARCA',                       label: 'Marca' },
-  { key: 'SABOR',                       label: 'Sabor' },
   { key: 'TAMANIO',                     label: 'Tamaño' },
   { key: 'MATERIAL',                    label: 'Material' },
   { key: 'DESTINO',                     label: 'Destino' },
@@ -547,7 +545,6 @@ onMounted(async () => {
   border: 1px solid;
 }
 .modo-textil   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
-.modo-botellas { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
 .modo-energia  { background: #fefce8; color: #854d0e; border-color: #fde68a; }
 
 /* Fila con date-time pickers */

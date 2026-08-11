@@ -884,11 +884,9 @@ async function cargarDatos() {
 
   const plantaId = plantaSeleccionada.value
 
-  const lineaObj   = lineas.value.find(l => l.id === lineaId)
-  const lineaMode  = lineaObj?.mode ?? 'botellas'
-  const minIS      = lineaMode === 'textil' ? 1800 : 300
-  // 8 h de datos: 16 snapshots textil (30 min) ó 96 snapshots botellas (5 min)
-  const snapLimit  = lineaMode === 'textil' ? 16 : 96
+  const minIS      = 1800
+  // 8 h de datos: 16 snapshots textiles de 30 minutos.
+  const snapLimit  = 16
 
   const [latestRes, snapsRes, stopsRes, turnosRes, velRes] = await Promise.allSettled([
     oeeService.getLatest(lineaId, plantaId),
@@ -920,7 +918,7 @@ async function cargarDatos() {
   let velocidadActual = '—'
   if (snapArr.length >= 2) {
     const d = parseInt(snapArr.at(-1)?.produccion ?? 0) - parseInt(snapArr.at(-2)?.produccion ?? 0)
-    if (d > 0) velocidadActual = `${d} u/5min`
+    if (d > 0) velocidadActual = `${d} u/30min`
   }
 
   // Merma/defectos del último snapshot

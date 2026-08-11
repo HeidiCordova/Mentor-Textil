@@ -312,7 +312,7 @@ GET    /datos-recibidos                  → Lista de raw events (admin)
 
 ```json
 {
-  "code": "ISM_AQP_PERSISTENCIA_L7",
+  "code": "TEXTIL_LIMA_CORTE_L1",
   "time": 1711270000000,
   "device_id": "jetson-orin-01",
   "interval_s": 300,

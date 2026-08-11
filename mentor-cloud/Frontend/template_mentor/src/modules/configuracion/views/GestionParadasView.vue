@@ -29,7 +29,7 @@ const paradasMock = ref([
   {
     id: 1,
     nombreVariable: 'PLC-L1-Tipo de Parada Programada',
-    linea: 'HAITIT LINEA 1',
+    linea: 'TEXTIL LINEA 1',
     categoriaId: 3,
     etiquetaId: 7,
     nivel1: 'PARADAS OBLIGATORIA',
@@ -44,7 +44,7 @@ const paradasMock = ref([
   {
     id: 2,
     nombreVariable: 'PLC-L1-Tipo de Parada Programada',
-    linea: 'HAITIT LINEA 1',
+    linea: 'TEXTIL LINEA 1',
     categoriaId: 3,
     etiquetaId: 7,
     nivel1: 'PARADAS OBLIGATORIA',
@@ -59,7 +59,7 @@ const paradasMock = ref([
   {
     id: 3,
     nombreVariable: 'PLC-L1-Tipo de Parada Programada',
-    linea: 'HAITIT LINEA 1',
+    linea: 'TEXTIL LINEA 1',
     categoriaId: 3,
     etiquetaId: 7,
     nivel1: 'PARADAS OBLIGATORIA',
@@ -74,7 +74,7 @@ const paradasMock = ref([
   {
     id: 4,
     nombreVariable: 'PLC-L1-Tipo de Parada Programada',
-    linea: 'HAITIT LINEA 1',
+    linea: 'TEXTIL LINEA 1',
     categoriaId: 3,
     etiquetaId: 7,
     nivel1: 'PARADAS OBLIGATORIA',
@@ -89,42 +89,42 @@ const paradasMock = ref([
   {
     id: 5,
     nombreVariable: 'PLC-L1-Tipo de Parada Programada',
-    linea: 'HAITIT LINEA 1',
+    linea: 'TEXTIL LINEA 1',
     categoriaId: 3,
     etiquetaId: 8,
     nivel1: 'PARADA DE MAQUINAS',
     nivel1Id: 102,
-    nivel2: 'SOPLADORA',
+    nivel2: 'CORTADORA',
     nivel2Id: 205,
-    nivel3: 'CAMBIO DE MOLDES',
+    nivel3: 'CAMBIO DE CUCHILLA',
     nivel3Id: 301,
-    nivel4: 'MOLDE A',
+    nivel4: 'CUCHILLA A',
     nivel4Id: 401
   },
   {
     id: 6,
     nombreVariable: 'PLC-L1-Tipo de Parada Programada',
-    linea: 'HAITIT LINEA 1',
+    linea: 'TEXTIL LINEA 1',
     categoriaId: 3,
     etiquetaId: 8,
     nivel1: 'PARADA DE MAQUINAS',
     nivel1Id: 102,
-    nivel2: 'SOPLADORA',
+    nivel2: 'CORTADORA',
     nivel2Id: 205,
-    nivel3: 'CAMBIO DE MOLDES',
+    nivel3: 'CAMBIO DE CUCHILLA',
     nivel3Id: 301,
-    nivel4: 'MOLDE B',
+    nivel4: 'CUCHILLA B',
     nivel4Id: 402
   },
   {
     id: 7,
     nombreVariable: 'PLC-L1-Tipo de Parada Programada',
-    linea: 'HAITIT LINEA 1',
+    linea: 'TEXTIL LINEA 1',
     categoriaId: 3,
     etiquetaId: 8,
     nivel1: 'PARADA DE MAQUINAS',
     nivel1Id: 102,
-    nivel2: 'ETIQUETADORA',
+    nivel2: 'MAQUINA DE COSTURA',
     nivel2Id: 206,
     nivel3: 'AJUSTE DE ETIQUETAS',
     nivel3Id: 302,
@@ -134,7 +134,7 @@ const paradasMock = ref([
   {
     id: 8,
     nombreVariable: 'PLC-L1-Tipo de Parada No Programada',
-    linea: 'HAITIT LINEA 1',
+    linea: 'TEXTIL LINEA 1',
     categoriaId: 1,
     etiquetaId: 2,
     nivel1: 'FALLAS MECANICAS',
@@ -159,14 +159,14 @@ const uploadError = ref('')
 const saveSuccess = ref(false)
 
 // Filtros
-const lineaFiltro = ref('HAITIT LINEA 1')
+const lineaFiltro = ref('TEXTIL LINEA 1')
 const categoriaFiltro = ref('')
 const etiquetaFiltro = ref('')
 const busqueda = ref('')
 
 // Líneas disponibles (mock)
 const lineasDisponibles = ref([
-  { id: 1, nombre: 'HAITIT LINEA 1' },
+  { id: 1, nombre: 'TEXTIL LINEA 1' },
   { id: 2, nombre: 'Línea 2' },
   { id: 3, nombre: 'Línea 3' }
 ])
@@ -317,7 +317,7 @@ const handleFileUpload = async (event) => {
     const data = await file.arrayBuffer()
     const workbook = XLSX.read(data)
     
-    // Buscar hoja que contenga datos de paradas (puede ser "HAITIT LINEA 1" u otra)
+    // Buscar la primera hoja que contenga datos de paradas.
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
     
@@ -412,26 +412,26 @@ const descargarPlantilla = () => {
       'nivel 4': '',
       'categoriaId': 3,
       'etiquetaId': 7,
-      'linea': 'HAITIT LINEA 1'
+      'linea': 'TEXTIL LINEA 1'
     },
     {
       'nombre dela variable': 'PLC-L1-Tipo de Parada Programada',
       'id': 102,
       'nivel 1': 'PARADA DE MAQUINAS',
       'id.1': 205,
-      'nivel 2': 'SOPLADORA',
+      'nivel 2': 'CORTADORA',
       'id.2': 301,
-      'nivel 3': 'CAMBIO DE MOLDES',
+      'nivel 3': 'CAMBIO DE CUCHILLA',
       'id.3': 401,
-      'nivel 4': 'MOLDE A',
+      'nivel 4': 'CUCHILLA A',
       'categoriaId': 3,
       'etiquetaId': 8,
-      'linea': 'HAITIT LINEA 1'
+      'linea': 'TEXTIL LINEA 1'
     }
   ]
 
   const ws = XLSX.utils.json_to_sheet(plantillaData)
-  XLSX.utils.book_append_sheet(workbook, ws, 'HAITIT LINEA 1')
+  XLSX.utils.book_append_sheet(workbook, ws, 'TEXTIL LINEA 1')
 
   // Agregar hoja de categorías
   const categoriasData = [

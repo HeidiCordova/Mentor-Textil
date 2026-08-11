@@ -137,9 +137,9 @@ watch(
     <!-- Brand -->
     <div class="px-4 pt-4 pb-3 border-b border-edge-700/30">
       <div class="flex items-center gap-2.5">
-        <img src="/mentor-logo.png" alt="Mentor Monitor" class="h-8 w-auto object-contain" />
+        <img src="/mentor-logo.png" alt="Mentor Textil" class="h-8 w-auto object-contain" />
         <div>
-          <div class="text-[13px] font-bold text-edge-100 tracking-wide">MENTOR MONITOR</div>
+          <div class="text-[13px] font-bold text-edge-100 tracking-wide">MENTOR TEXTIL</div>
           <div class="flex items-center gap-1.5 mt-0.5">
             <span
               class="w-1.5 h-1.5 rounded-full"

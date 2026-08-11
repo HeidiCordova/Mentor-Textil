@@ -1,7 +1,7 @@
 const mockUsersData = [
   { id: 1, username: 'admin', email: 'admin@mentormonitor.com', nombre: 'Administrador', rol: 'ADMIN', activo: true },
-  { id: 2, username: 'operador1', email: 'operador1@ism.com', nombre: 'Juan Pérez', rol: 'OPERATOR', activo: true },
-  { id: 3, username: 'supervisor1', email: 'supervisor1@ism.com', nombre: 'María García', rol: 'SUPERVISOR', activo: true }
+  { id: 2, username: 'operador1', email: 'operador1@artatlas.pe', nombre: 'Juan Pérez', rol: 'OPERATOR', activo: true },
+  { id: 3, username: 'supervisor1', email: 'supervisor1@artatlas.pe', nombre: 'María García', rol: 'SUPERVISOR', activo: true }
 ]
 
 export const mockUsers = {

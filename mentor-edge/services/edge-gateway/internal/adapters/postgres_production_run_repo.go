@@ -3,6 +3,7 @@ package adapters
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -169,7 +170,7 @@ func (r *PostgresProductionRunRepo) List(ctx context.Context, f domain.Productio
 		i++
 	}
 	if f.Since != nil {
-		where = append(where, fmt.Sprintf("started_at >= $%d", i))
+		where = append(where, fmt.Sprintf("(ended_at IS NULL OR ended_at > $%d)", i))
 		args = append(args, *f.Since)
 		i++
 	}
@@ -207,6 +208,33 @@ func (r *PostgresProductionRunRepo) List(ctx context.Context, f domain.Productio
 		runs = append(runs, *run)
 	}
 	return runs, rows.Err()
+}
+
+func (r *PostgresProductionRunRepo) FindActive(
+	ctx context.Context,
+	deviceID string,
+	lineaID int,
+	at time.Time,
+) (*domain.ProductionRun, error) {
+	query := fmt.Sprintf(`
+		SELECT %s
+		FROM %s
+		WHERE device_id = $1
+		  AND (linea_id = $2 OR linea_id IS NULL)
+		  AND started_at <= $3
+		  AND (ended_at IS NULL OR ended_at > $3)
+		ORDER BY (linea_id = $2) DESC NULLS LAST, started_at DESC, id DESC
+		LIMIT 1
+	`, runCols, r.tbl())
+
+	run, err := scanRun(r.db.QueryRowContext(ctx, query, deviceID, lineaID, at))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return run, nil
 }
 
 func (r *PostgresProductionRunRepo) Delete(ctx context.Context, runID string) ([]domain.ProductionRun, error) {

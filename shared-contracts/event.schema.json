@@ -45,13 +45,13 @@
         },
         "signals": {
           "type": "object",
-          "required": ["edge", "color", "flow", "yolo"],
+          "required": ["edge", "color", "flow", "beige"],
           "additionalProperties": false,
           "properties": {
             "edge": { "type": "number", "minimum": 0, "maximum": 1 },
             "color": { "type": "number", "minimum": 0, "maximum": 1 },
             "flow": { "type": "number", "minimum": 0, "maximum": 1 },
-            "yolo": { "type": "number", "minimum": 0, "maximum": 1 }
+            "beige": { "type": "number", "minimum": 0, "maximum": 1 }
           }
         }
       }

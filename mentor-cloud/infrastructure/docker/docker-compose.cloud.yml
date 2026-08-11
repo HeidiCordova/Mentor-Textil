@@ -15,6 +15,8 @@ services:
       - ../database/11_admin_schema.sql:/docker-entrypoint-initdb.d/02_admin.sql:ro
       - ../database/08_derived_variables.sql:/docker-entrypoint-initdb.d/03_derived_variables.sql:ro
       - ../database/13_legacy_operational.sql:/docker-entrypoint-initdb.d/04_legacy_operational.sql:ro
+      - ../database/27_linea_mode.sql:/docker-entrypoint-initdb.d/05_linea_mode.sql:ro
+      - ../database/30_textile_only_cleanup.sql:/docker-entrypoint-initdb.d/06_textile_only_cleanup.sql:ro
     ports:
       - "5434:5432"
     healthcheck:

@@ -18,7 +18,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
              '{\"n_frames\": 3, \"cooldown\": 8, \"exit_frames\": 5, \"max_wait_exit_frames\": 50}',
              'textil',
              '{\"url\": \"\", \"fps\": 25}',
-             '{\"line_name\": \"\", \"micro_stop_max_s\": 210, \"stop_max_s\": 300, \"snapshot_interval_s\": 300}',
+             '{\"line_name\": \"\", \"micro_stop_max_s\": 120, \"stop_max_s\": 86400, \"snapshot_interval_s\": 1800, \"vel_unit\": \"uh\", \"vel_nominal_us\": 0.008333333}',
              '{\"sync_interval_s\": 300}'
          )
          ON CONFLICT (device_id) DO NOTHING;"

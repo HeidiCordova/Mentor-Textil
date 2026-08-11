@@ -6,6 +6,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 COMPOSE_DIR="$SCRIPT_DIR"
 COMPOSE_FILE="$COMPOSE_DIR/docker-compose.jetson-orin.yml"
 CALIBRATION_MIGRATION="$PROJECT_ROOT/infrastructure/database/30_detector_calibration.sql"
+TEXTILE_ONLY_MIGRATION="$PROJECT_ROOT/infrastructure/database/31_textile_only_remove_yolo.sql"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -91,6 +92,38 @@ cmd_migrate() {
     log_info "Migracion detector_calibration aplicada"
 }
 
+cmd_migrate_textile() {
+    if [ ! -f "$TEXTILE_ONLY_MIGRATION" ]; then
+        log_error "No se encontro la migracion: $TEXTILE_ONLY_MIGRATION"
+        exit 1
+    fi
+
+    # Esta marca solo existe en el servicio que ya no consulta la columna
+    # retirada. Esperar su arranque evita aplicar el DROP con un contenedor
+    # antiguo o mientras el reemplazo todavía no está listo.
+    local ready=0
+    for _ in $(seq 1 30); do
+        if curl -fsS http://localhost:8004/health \
+            | grep -q '"config_schema":"textile-v1"'; then
+            ready=1
+            break
+        fi
+        sleep 2
+    done
+    if [ "$ready" -ne 1 ]; then
+        log_error "edge-config-service actualizado no esta listo; no se aplico la limpieza textil"
+        log_warn "Reconstruye y levanta edge-config-service antes de reintentar."
+        exit 1
+    fi
+
+    log_info "Aplicando limpieza idempotente de configuracion textil..."
+    cd "$COMPOSE_DIR"
+    docker compose -f "$COMPOSE_FILE" exec -T postgres \
+        sh -c 'psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"' \
+        < "$TEXTILE_ONLY_MIGRATION"
+    log_info "Migracion textil-only aplicada"
+}
+
 cmd_pull() {
     if ! git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree &>/dev/null; then
         log_error "$PROJECT_ROOT no es un repositorio git"
@@ -118,11 +151,17 @@ cmd_pull() {
 
     # Detectar que servicios cambiaron para reconstruir solo los necesarios
     local CHANGED_SERVICES=()
+    local NEEDS_TEXTILE_CLEANUP=0
     local CHANGED_FILES
-    CHANGED_FILES=$(git -C "$PROJECT_ROOT" diff --name-only "$BEFORE" "$AFTER")
+    CHANGED_FILES=$(git -C "$PROJECT_ROOT" diff --relative --name-only "$BEFORE" "$AFTER")
 
     if echo "$CHANGED_FILES" | grep -q "infrastructure/database/30_detector_calibration.sql"; then
         cmd_migrate
+    fi
+
+    if echo "$CHANGED_FILES" | grep -Eq \
+        "infrastructure/database/31_textile_only_remove_yolo.sql|services/edge-config-service/"; then
+        NEEDS_TEXTILE_CLEANUP=1
     fi
 
     for svc in ui-local edge-gateway enviador resiliencia edge-config-service vision-event-detector; do
@@ -132,6 +171,9 @@ cmd_pull() {
     done
 
     if [ ${#CHANGED_SERVICES[@]} -eq 0 ]; then
+        if [ "$NEEDS_TEXTILE_CLEANUP" -eq 1 ]; then
+            cmd_migrate_textile
+        fi
         log_info "Solo cambiaron archivos de infraestructura/docs. Revisa manualmente si necesitas rebuild."
         return 0
     fi
@@ -141,6 +183,9 @@ cmd_pull() {
     cd "$COMPOSE_DIR"
     docker compose -f "$COMPOSE_FILE" build --no-cache "${CHANGED_SERVICES[@]}"
     docker compose -f "$COMPOSE_FILE" up -d "${CHANGED_SERVICES[@]}"
+    if [ "$NEEDS_TEXTILE_CLEANUP" -eq 1 ]; then
+        cmd_migrate_textile
+    fi
     log_info "Servicios actualizados y reiniciados."
     cmd_status
 }
@@ -153,10 +198,14 @@ cmd_deploy() {
     if [ ${#services[@]} -eq 0 ]; then
         cmd_build
         cmd_up
+        cmd_migrate_textile
     else
         cmd_build "${services[@]}"
         cd "$COMPOSE_DIR"
         docker compose -f "$COMPOSE_FILE" up -d "${services[@]}"
+        if printf '%s\n' "${services[@]}" | grep -qx "edge-config-service"; then
+            cmd_migrate_textile
+        fi
         log_info "Servicios actualizados: ${services[*]}"
         cmd_status
     fi
@@ -264,7 +313,8 @@ usage() {
     echo "  pull          git pull + rebuild automatico de servicios con cambios"
     echo "  deploy        pull + build + up (rebuild forzado de todo)"
     echo "  build         Construir imagenes Docker (microservicios)"
-    echo "  migrate       Aplicar migraciones PostgreSQL sin borrar pgdata"
+    echo "  migrate       Aplicar migracion de calibracion sin borrar pgdata"
+    echo "  migrate-textile  Retirar configuracion heredada tras actualizar edge-config-service"
     echo "  tablet-build  Compilar la tablet app (genera dist/)"
     echo "  up            Iniciar todos los servicios"
     echo "  down          Detener todos los servicios"
@@ -285,6 +335,7 @@ main() {
         deploy)        shift; cmd_deploy "$@" ;;
         build)         shift; cmd_build "$@" ;;
         migrate)       cmd_migrate ;;
+        migrate-textile) cmd_migrate_textile ;;
         tablet-build)  cmd_tablet_build ;;
         up)            shift; cmd_up "$@" ;;
         down)          shift; cmd_down "$@" ;;

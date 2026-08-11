@@ -1,0 +1,36 @@
+diff --git a/mentor-edge/infrastructure/docker/docker-compose.jetson-orin.yml b/mentor-edge/infrastructure/docker/docker-compose.jetson-orin.yml
+--- a/mentor-edge/infrastructure/docker/docker-compose.jetson-orin.yml
++++ b/mentor-edge/infrastructure/docker/docker-compose.jetson-orin.yml
+@@ -44,7 +44,27 @@ services:
+       CONFIG_SERVICE_URL: http://127.0.0.1:8004
+       RESILIENCIA_URL: http://127.0.0.1:8002
+       GATEWAY_URL: http://127.0.0.1:8005
++      LINEA_ID: ${LINEA_ID:-1}
++      DEVICE_ID: ${DEVICE_ID:-jetson-1}
++      PGHOST: 127.0.0.1
++      PGPORT: 5432
++      PGDATABASE: mentor_edge
++      PGUSER: mentor
++      PGPASSWORD: mentor
++      CALIBRATION_SAMPLES: ${CALIBRATION_SAMPLES:-30}
++      CALIBRATION_MIN_QUALITY: ${CALIBRATION_MIN_QUALITY:-0.90}
++      CALIBRATION_EXPIRY_DAYS: ${CALIBRATION_EXPIRY_DAYS:-90}
++      EVENT_SPOOL_PATH: /var/lib/mentor/vision-events.sqlite3
++      OEE_STATE_FILE: /var/lib/mentor/last_oee_emit
++      EVENT_SPOOL_MAX_EVENTS: ${EVENT_SPOOL_MAX_EVENTS:-10000}
++      EVENT_SPOOL_MAX_EVENT_BYTES: ${EVENT_SPOOL_MAX_EVENT_BYTES:-65536}
++      EVENT_RETRY_INITIAL_S: ${EVENT_RETRY_INITIAL_S:-1}
++      EVENT_RETRY_MAX_S: ${EVENT_RETRY_MAX_S:-60}
++      EVENT_RETRY_MAX_ATTEMPTS: ${EVENT_RETRY_MAX_ATTEMPTS:-0}
++      EVENT_HTTP_TIMEOUT_S: ${EVENT_HTTP_TIMEOUT_S:-5}
+       TZ: ${TZ:-America/Lima}
++    volumes:
++      - vision_event_spool:/var/lib/mentor
+     depends_on:
+       postgres:
+         condition: service_healthy
+@@ -223,2 +243,4 @@ volumes:
+   pgdata:
+     driver: local
++  vision_event_spool:
++    driver: local

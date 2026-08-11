@@ -117,7 +117,7 @@ onMounted(async () => {
         <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-2xl bg-edge-800 border border-edge-700/50">
           <SvgIcon name="monitor" :size="32" class="text-production-active" />
         </div>
-        <h1 class="text-xl font-bold text-edge-100">Mentor Tablet</h1>
+        <h1 class="text-xl font-bold text-edge-100">Mentor Textil</h1>
         <p class="text-sm text-edge-400 mt-1">Seleccione un dispositivo o servidor cloud</p>
       </div>
 

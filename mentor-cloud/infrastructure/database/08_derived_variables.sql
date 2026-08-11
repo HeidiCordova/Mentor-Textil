@@ -15,6 +15,6 @@ SELECT
   v.empresa_id,
   true
 FROM config.variables v
-WHERE v.clave IN ('CONTEO_UNITARIO_PRINCIPAL', 'MERMA', 'CONTEO_1', 'CONTEO_2')
+WHERE v.clave IN ('CONTEO_UNITARIO_PRINCIPAL', 'MERMA', 'CONTEO_1')
   AND v.activo = true
 ON CONFLICT (clave, dispositivo_id) DO NOTHING;

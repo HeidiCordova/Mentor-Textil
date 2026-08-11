@@ -15,12 +15,12 @@ const filtersStore = useFiltersStore()
 const data = ref(null)
 
 const companies = ref([
-  { value: 1, label: 'Industrias San Miguel' }
+  { value: 1, label: 'Art Atlas' }
 ])
 
 const plants = ref([
-  { value: 1, label: 'ISM Arequipa' },
-  { value: 2, label: 'Histórico Embotelladora San Miguel' }
+  { value: 1, label: 'Planta Textil Lima' },
+  { value: 2, label: 'Histórico Planta Textil' }
 ])
 
 onMounted(async () => {

@@ -34,13 +34,13 @@ Los tres niveles se comunican mediante API REST con autenticación por API Key (
 │  Cámara RTSP                                                         │
 │      │                                                               │
 │      ▼                                                               │
-│  ┌─────────────────────┐    ┌──────────────────┐                     │
-│  │ vision-event-detector│    │   yolo-counter   │                     │
-│  │  (Python :8001)      │    │  (Python :8006)  │                     │
-│  │  FSM + Fusion Engine │    │  YOLO + TensorRT │                     │
-│  └────────┬─────────────┘    └───────┬──────────┘                     │
-│           │ CORTE + OEE              │ Conteos                        │
-│           ▼                          ▼                                │
+│  ┌─────────────────────┐                                                │
+│  │ vision-event-detector│                                                │
+│  │  (Python :8001)      │                                                │
+│  │  FSM + Fusion Engine │                                                │
+│  └────────┬─────────────┘                                                │
+│           │ CORTE + OEE                                                  │
+│           ▼                                                              │
 │  ┌──────────────────────────────────────┐                             │
 │  │          resiliencia (Go :8002)       │                             │
 │  │   Buffer BD · Dedup · 6 meses ret.   │                             │
@@ -93,7 +93,6 @@ Los tres niveles se comunican mediante API REST con autenticación por API Key (
 | enviador | 8003 | Go | Sincronización con cloud, retry exponencial, heartbeat |
 | edge-config-service | 8004 | Go | CRUD de configuración por línea, auto-versionamiento |
 | edge-gateway | 8005 | Go | API REST unificada, SSE broker, proxy a servicios internos |
-| yolo-counter | 8006 | Python | Conteo por YOLO+TensorRT, correlación de marca |
 | ui-local | 8080 | Vue.js/Nginx | Interfaz local para tablets |
 | PostgreSQL | 5432 | PostgreSQL 14 | BD local con schemas `config` + `linea_{id}` |
 
@@ -179,7 +178,7 @@ OEE = Disponibilidad × Rendimiento × Calidad
 | Variable | Descripción | Unidad |
 |----------|-------------|--------|
 | T_DISPONIBLE | Tiempo total de la ventana | ms |
-| T_MICROPARADA | Tiempo en microparadas (<120s textil, <210s botellas) | ms |
+| T_MICROPARADA | Tiempo en microparadas (<120s en operación textil) | ms |
 | T_PARADA_NO_ASIGNADA | Tiempo en paradas sin categorizar | ms |
 | T_PARADA_PROGRAMADA | Parada planificada (mantenimiento) | ms |
 | T_REFRIGERIO | Tiempo de descanso obligatorio | ms |
@@ -229,7 +228,7 @@ OEE = (Disponibilidad/100) × (Rendimiento/100) × (Calidad/100) × 100
 BD: mentor_edge
 
 Schema config (compartido):
-├── line_config      → 1 fila por device_id (ROI, thresholds, FSM, modo, cámara, OEE, cloud, yolo)
+├── line_config      → 1 fila por device_id (ROI, thresholds, FSM, cámara, OEE, cloud)
 
 Schema linea_{id} (por línea):
 ├── stops            → Paradas (tipo, duración, justificación, fuente)
@@ -272,7 +271,6 @@ BD Tenant: mentor_planta_{N}  (una por planta)
 | gateway | detector :8001 | `/calibrate`, `/camera/stream` | Calibración y streaming |
 | detector | resiliencia :8002 | `POST /events` | Guardar CORTE + OEE |
 | detector | gateway :8005 | `POST /stops` | Registrar paradas automáticas |
-| counter | resiliencia :8002 | `POST /events` | Guardar conteos YOLO |
 | enviador | cloud :8888 | `POST /events/batch` | Sincronizar al cloud |
 | tablet | gateway :8005 | HTTP + SSE | Toda interacción UI |
 
@@ -317,14 +315,13 @@ Los contratos entre edge y cloud están definidos en `shared-contracts/`:
 
 ---
 
-## Modos de Operación
+## Modo de Operación
 
 | Modo | Microparada máx. | Snapshot interval | Uso |
 |------|-------------------|-------------------|-----|
 | **textil** | 120s | 1800s (30 min) | Líneas de confección textil |
-| **botellas** | 210s | 300s (5 min) | Líneas de embotellado |
 
-Cada modo predefine umbrales de FSM, intervalos de OEE y tiempos de clasificación de paradas.
+La configuración textil define los umbrales de FSM, intervalos de OEE y tiempos de clasificación de paradas.
 
 ---
 
@@ -334,7 +331,7 @@ Cada modo predefine umbrales de FSM, intervalos de OEE y tiempos de clasificaci�
 
 - **Docker Compose** (`docker-compose.jetson-orin.yml`)
 - PostgreSQL 14 Alpine (512M)
-- Servicios Python con acceso a GPU NVIDIA
+- Servicio Python con acceso a GPU NVIDIA
 - Servicios Go con límites de 128M
 - Nginx como reverse proxy (:8080 → tablet)
 - Health checks automáticos
@@ -355,7 +352,6 @@ Un solo Jetson puede monitorear múltiples líneas de producción:
 - 1 `edge-config-service` compartido
 - 1 `edge-gateway` con múltiples `LineContext`
 - 1 `vision-event-detector` por línea (parámetro `LINEA_ID`)
-- 1 `yolo-counter` asignado a una línea (configurable)
 - 1 `resiliencia` y 1 `enviador` con goroutines por línea
 - Schemas independientes: `linea_1`, `linea_2`, etc.
 
@@ -381,6 +377,6 @@ El sistema soporta cambios en caliente sin reiniciar servicios:
 
 1. Operador edita configuración en tablet → `PUT /edge/config`
 2. `edge-config-service` actualiza BD → trigger SQL incrementa `config_version`
-3. Detector y counter hacen polling cada **5 segundos** comparando `config_version`
+3. El detector hace polling cada **5 segundos** comparando `config_version`
 4. Si version > local → `GET /config` completo → aplica dinámicamente
-5. Parámetros reconfigurables: ROI, thresholds, FSM, modo, cámara, intervalo OEE, modelo YOLO, intervalo sync, URL cloud
+5. Parámetros reconfigurables: ROI, thresholds, FSM, cámara, intervalo OEE, intervalo sync y URL cloud

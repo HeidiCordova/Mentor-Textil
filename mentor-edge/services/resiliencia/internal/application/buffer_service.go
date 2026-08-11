@@ -74,6 +74,14 @@ func (s *BufferService) GetRecentEvents(ctx context.Context, limit int, since *t
 	return s.storage.GetRecentEvents(ctx, limit, since)
 }
 
+func (s *BufferService) GetVisionCount(ctx context.Context, since, until time.Time) (*domain.VisionCount, error) {
+	return s.storage.GetVisionCount(ctx, since, until)
+}
+
+func (s *BufferService) GetVisionCounter(ctx context.Context, until time.Time) (*domain.VisionCounter, error) {
+	return s.storage.GetVisionCounter(ctx, until)
+}
+
 func (s *BufferService) GetPendingEvents(ctx context.Context, limit int) ([]*domain.EventBuffer, error) {
 	return s.storage.GetPendingEvents(ctx, limit)
 }

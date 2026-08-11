@@ -17,24 +17,8 @@ type LineConfig struct {
 	OEE           OEEConfig     `json:"oee"`
 	Cloud         CloudConfig   `json:"cloud"`
 	Tablet        *TabletConfig `json:"tablet,omitempty"`
-	Yolo          *YoloConfig   `json:"yolo,omitempty"`
 	CreatedAt     time.Time     `json:"created_at"`
 	UpdatedAt     time.Time     `json:"updated_at"`
-}
-
-type YoloConfig struct {
-	ModelName         string   `json:"model_name"`
-	Confidence        float64  `json:"confidence"`
-	Classes           []int    `json:"classes,omitempty"`
-	ClassNames        []string `json:"class_names,omitempty"`
-	CountingLineY     float64  `json:"counting_line_y"`
-	CountingLineX     float64  `json:"counting_line_x,omitempty"`
-	CountingDirection string   `json:"counting_direction"`
-	UseTensorRT       bool     `json:"use_tensorrt"`
-	Imgsz             int      `json:"imgsz"`
-	// AssignedLineaID se usa solo en la fila de sistema (linea_id=0) para
-	// indicar a qué línea de producción sirve el servicio yolo-counter.
-	AssignedLineaID int `json:"assigned_linea_id,omitempty"`
 }
 
 type ROIData struct {
@@ -110,22 +94,20 @@ type TabletConfig struct {
 	GatewayPort int    `json:"gatewayPort"`
 }
 
-// ModeDefaultOEE devuelve los parámetros OEE canónicos según el modo de detección.
+// ModeDefaultOEE devuelve los parámetros OEE canónicos para detección textil.
 //
-// Clasificación binaria en ambos modos:
+// Clasificación binaria:
 //   - parada continua < micro_stop_max_s → T_MICROPARADA (descartada, no justificable)
 //   - parada continua ≥ micro_stop_max_s → T_PARADA_NO_ASIGNADA (el operario justifica)
 //
 // stop_max_s = 86400 s (centinela: T_PARADA_MAYOR nunca se activa).
-//
-//   - "textil":   microparada < 2 min (120 s), snapshot cada 30 min
-//   - "botellas": microparada < 3.5 min (210 s), snapshot cada 5 min
 func ModeDefaultOEE(mode string) OEEConfig {
-	switch mode {
-	case "botellas":
-		return OEEConfig{MicroStopMaxS: 210, StopMaxS: 86400, SnapshotInterS: 300, VelUnit: "us"}
-	default: // textil
-		return OEEConfig{MicroStopMaxS: 120, StopMaxS: 86400, SnapshotInterS: 1800, VelUnit: "us"}
+	return OEEConfig{
+		MicroStopMaxS:  120,
+		StopMaxS:       86400,
+		SnapshotInterS: 1800,
+		VelUnit:        "uh",
+		VelNominalUS:   0.008333333,
 	}
 }
 
@@ -170,7 +152,7 @@ func (c *LineConfig) Validate() error {
 		return ErrInvalidFSM
 	}
 
-	if c.Mode != "textil" && c.Mode != "botellas" {
+	if c.Mode != "textil" {
 		return ErrInvalidMode
 	}
 

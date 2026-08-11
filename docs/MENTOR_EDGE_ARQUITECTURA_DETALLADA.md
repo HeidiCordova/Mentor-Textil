@@ -49,8 +49,6 @@
 │     ↓                                                        │
 │  edge-config-service :8004                                  │
 │     ↓                                                        │
-│  yolo-counter :8006 (modo botellas)                         │
-│     ↓                                                        │
 │  ui-local :8080 (interfaz técnico local)                    │
 └─────────────────────────────────────────────────────────────┘
          ↓ HTTPS
@@ -67,7 +65,6 @@ services:
   edge-config:     golang:1.22-alpine
   edge-gateway:    golang:1.22-alpine
   vision-detector: ubuntu:22.04 + OpenCV
-  yolo-counter:    ubuntu:22.04 + NVIDIA L4T + YOLOv8
   ui-local:        nginx:alpine
 ```
 
@@ -96,7 +93,7 @@ services:
 ```
 domain/
   ├── roi_manager.py          # Gestión de ROIs
-  ├── signal_processor.py     # 4 señales: Edge, HSV, Flow, YOLO
+  ├── signal_processor.py     # 4 señales: Edge, HSV, Flow, Beige
   ├── fusion_engine.py        # Combinación de señales con pesos
   ├── event_detector.py       # FSM (IDLE → DETECTING → CONFIRMING → COOLDOWN)
   └── stop_tracker.py         # Tracking de paradas industriales
@@ -144,11 +141,10 @@ flow = cv2.calcOpticalFlowFarneback(
 vertical_flow = np.mean(np.abs(flow[..., 1]))
 ```
 
-##### 4. YOLO Signal (opcional)
+##### 4. Beige Signal
 ```python
-# Detección de objetos con ultralytics
-results = model.predict(frame, conf=0.5)
-detected = len(results[0].boxes) > 0
+# Cobertura de color beige/crema dentro del ROI textil
+beige_ratio = image_processor.beige_ratio(roi_frame)
 ```
 
 #### Fusion Engine
@@ -159,9 +155,9 @@ def compute_score(self) -> float:
     s = self.signals
     return (
         w.edge * s.edge +
-        w.histogram * s.histogram +
+        w.color * s.color +
         w.flow * s.flow +
-        w.yolo * (1.0 if s.yolo_detected else 0.0)
+        w.beige * s.beige
     )
 ```
 
@@ -219,10 +215,10 @@ class StopTracker:
     "x": 100, "y": 50, "width": 800, "height": 600
   },
   "fusion": {
-    "weight_edge": 0.4,
-    "weight_histogram": 0.3,
-    "weight_flow": 0.3,
-    "weight_yolo": 0.0
+    "weight_edge": 0.25,
+    "weight_color": 0.30,
+    "weight_flow": 0.35,
+    "weight_beige": 0.10
   },
   "fsm": {
     "high_threshold": 0.6,
@@ -239,76 +235,7 @@ class StopTracker:
 
 ---
 
-### 2. yolo-counter
-
-**Lenguaje**: Python 3.10  
-**Puerto**: 8006  
-**Runtime**: nvidia  
-**Modelo**: YOLOv8n-seg  
-
-#### Responsabilidades
-
-- Conteo de objetos en tiempo real (botellas, piezas)
-- Tracking multi-objeto con ByteTrack
-- Detección de cruces de línea virtual
-- Cálculo de OEE por ventana temporal
-- Stream MJPEG para visualización
-
-#### Arquitectura
-
-```
-domain/
-  ├── yolo_engine.py          # Ultralytics YOLO + supervision
-  ├── line_counter.py         # ByteTrack + LineZone
-  ├── count_aggregator.py     # Ventanas de OEE
-  └── roi_manager.py          # ROIs y líneas de conteo
-
-adapters/
-  ├── opencv_adapter.py       # Captura RTSP
-  ├── config_client.py        # Config desde edge-config-service
-  └── http_event_adapter.py   # Eventos a resiliencia
-
-application/
-  └── counter_service.py      # Loop principal + snapshots
-```
-
-#### Pipeline de Conteo
-
-```python
-# 1. Detección YOLO
-results = model.predict(frame, conf=0.5, iou=0.7)
-
-# 2. Convertir a supervision.Detections
-detections = sv.Detections.from_ultralytics(results[0])
-
-# 3. Tracking con ByteTrack
-detections = byte_tracker.update_with_detections(detections)
-
-# 4. Contar cruces de línea
-line_zone.trigger(detections)
-count = line_zone.in_count  # o out_count según dirección
-
-# 5. Agregar a ventana OEE
-aggregator.add_count(count, timestamp)
-
-# 6. Calcular OEE
-snapshot = aggregator.compute_oee(
-    target_rate=200,  # unidades/min
-    window_minutes=5
-)
-```
-
-#### Endpoints Lab
-
-```
-GET /lab/snapshot   → JPEG anotado con última detección
-GET /lab/stream     → MJPEG continuo con bboxes + track_id
-GET /status         → JSON con contadores actuales
-```
-
----
-
-### 3. resiliencia
+### 2. resiliencia
 
 **Lenguaje**: Go 1.22  
 **Puerto**: 8002  
@@ -383,7 +310,7 @@ go func() {
 
 ---
 
-### 4. enviador
+### 3. enviador
 
 **Lenguaje**: Go 1.22  
 **Puerto**: 8003  
@@ -513,7 +440,7 @@ func (s *SenderService) SendBatch(events []Event) error {
 
 ---
 
-### 5. edge-config-service
+### 4. edge-config-service
 
 **Lenguaje**: Go 1.22  
 **Puerto**: 8004  
@@ -533,14 +460,13 @@ CREATE SCHEMA IF NOT EXISTS config;
 
 CREATE TABLE config.line_config (
     line_id           INTEGER PRIMARY KEY,
-    mode              VARCHAR(20) NOT NULL,  -- textil | botellas
+    mode              VARCHAR(20) NOT NULL DEFAULT 'textil',
     camera_url        TEXT NOT NULL,
     frame_backend     VARCHAR(20) DEFAULT 'opencv',
     roi               JSONB NOT NULL,
     fusion            JSONB NOT NULL,
     fsm               JSONB NOT NULL,
     stop_tracking     JSONB,
-    yolo              JSONB,  -- solo si mode=botellas
     version           INTEGER DEFAULT 1,
     updated_at        TIMESTAMPTZ DEFAULT NOW()
 );
@@ -579,8 +505,8 @@ func ValidateLineConfig(cfg *LineConfig) error {
         return errors.New("n_frames_confirm must be in [1, 30]")
     }
     
-    if cfg.Mode != "textil" && cfg.Mode != "botellas" {
-        return errors.New("mode must be 'textil' or 'botellas'")
+    if cfg.Mode != "textil" {
+        return errors.New("mode must be 'textil'")
     }
     
     return nil
@@ -589,7 +515,7 @@ func ValidateLineConfig(cfg *LineConfig) error {
 
 ---
 
-### 6. edge-gateway
+### 5. edge-gateway
 
 **Lenguaje**: Go 1.22  
 **Puerto**: 8005  
@@ -841,7 +767,7 @@ const (
 
 ---
 
-### 7. energy-sender
+### 6. energy-sender
 
 **Lenguaje**: Go 1.22  
 **Puerto**: 8086  
@@ -894,7 +820,7 @@ GET  /readings/pending    → readings con synced=false
 
 ---
 
-### 8. ui-local
+### 7. ui-local
 
 **Framework**: Vue 3 Composition API  
 **Puerto**: 8080  
@@ -909,7 +835,7 @@ src/
     ├── Config.vue            # Editor de parámetros + ROI
     ├── Health.vue            # Health checks de servicios
     ├── Metrics.vue           # CPU, RAM, temperatura
-    └── Lab.vue               # Visualización YOLO/detector
+    └── Lab.vue               # Visualización del detector
   components/
     ├── ROIEditor.vue         # Canvas interactivo
     ├── HealthCard.vue        # Card de estado por servicio

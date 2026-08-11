@@ -167,7 +167,7 @@ func (c *HTTPCloudClient) AckPendingCommands(ctx context.Context, ids []int64) e
 	return c.postJSON(ctx, "/api/v1/edge/pending-commands/ack", map[string]interface{}{"ids": ids})
 }
 
-// SyncMode sincroniza el modo de operación de la línea (textil/botellas) al cloud.
+// SyncMode sincroniza el modo de operación textil de la línea al cloud.
 func (c *HTTPCloudClient) SyncMode(ctx context.Context, lineaID int, mode string) error {
 	return c.putJSON(ctx, "/api/v1/edge/linea-config", map[string]interface{}{
 		"linea_id": lineaID,

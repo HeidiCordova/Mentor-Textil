@@ -306,8 +306,8 @@ El valor configurado es `micro_stop_max_s = 210 segundos` para líneas convencio
 
 ### 7.3 El problema del umbral fijo en textil
 
-El umbral de 210 s fue diseñado para una embotelladora (20 u/s → ciclo de 0.05 s). En
-textil, una prenda tarda 8-15 minutos. Con 210 s, el sistema clasifica como parada
+El umbral fijo heredado de 210 s no representa el ciclo productivo textil: una prenda
+tarda 8-15 minutos. Con 210 s, el sistema clasifica como parada
 **mientras la máquina está fabricando normalmente**, generando OEE falso.
 
 **Solución propuesta** (pendiente de implementar): umbral dinámico basado en velocidad nominal:

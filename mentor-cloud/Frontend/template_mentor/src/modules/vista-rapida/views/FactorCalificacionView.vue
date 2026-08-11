@@ -7,11 +7,11 @@ import { useApi } from '@/shared/composables/useApi'
 const { loading, error, execute } = useApi()
 
 const empresas = ref([
-  { id: 1, nombre: 'Industrias San Miguel' }
+  { id: 1, nombre: 'Art Atlas' }
 ])
 
 const plantas = ref([
-  { id: 1, empresaId: 1, nombre: 'ISM Arequipa' }
+  { id: 1, empresaId: 1, nombre: 'Planta Textil Lima' }
 ])
 
 const reportes = ref([
@@ -132,7 +132,7 @@ onMounted(() => {
           <label class="filter-label">Planta</label>
           <select v-model="plantaSeleccionada" class="filter-select">
             <option v-for="planta in plantasFiltradas" :key="planta.id" :value="planta.id">
-              Historico Embotelladora San Miguel
+              Histórico Planta Textil
             </option>
           </select>
         </div>

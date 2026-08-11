@@ -12,6 +12,8 @@ RUN go mod download
 
 COPY . .
 
+RUN go test ./...
+
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o resiliencia ./cmd/main.go
 
 FROM alpine:3.19

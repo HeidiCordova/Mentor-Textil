@@ -4,7 +4,7 @@
 -- Idempotente: usa IF NOT EXISTS
 -- ============================================================
 
--- Cubre: WHERE linea_id=X AND fecha=Y AND interval_s >= 300
+-- Cubre: WHERE linea_id=X AND fecha=Y AND interval_s >= 1800
 -- GetStats, GetCharts, GetReports filtran siempre por interval_s
 CREATE INDEX IF NOT EXISTS idx_ingest_oee_linea_fecha_interval
     ON ingest.oee_snapshots(linea_id, fecha DESC, interval_s);

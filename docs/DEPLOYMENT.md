@@ -244,7 +244,7 @@ curl http://localhost:8004/config/version?device_id=jetson-default
 
 Lógica de negocio pura:
 - ROI Manager
-- Signal Extractors (Edge, Color, Flow, YOLO)
+- Signal Extractors (Edge, Color, Flow, Beige)
 - Fusion Engine
 - Event FSM
 - Calibration

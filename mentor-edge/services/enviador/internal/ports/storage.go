@@ -19,7 +19,7 @@ type EventStorage interface {
 	GetUnsyncedEnergyEvents(ctx context.Context, limit int) ([]Event, error)
 	// ApplyPendingCommand aplica un comando recibido desde cloud al edge DB.
 	ApplyPendingCommand(ctx context.Context, cmd PendingCommand) error
-	// GetCurrentMode devuelve el modo de operación actual de la línea (textil/botellas).
+	// GetCurrentMode devuelve el modo de operación textil de la línea.
 	GetCurrentMode(ctx context.Context, lineaID int) (string, error)
 }
 

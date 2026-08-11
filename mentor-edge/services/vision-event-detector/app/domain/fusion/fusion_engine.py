@@ -1,26 +1,14 @@
 from dataclasses import dataclass
 from typing import Dict
 
-_DEFAULT_WEIGHTS: Dict[str, float] = {
-    'edge':  0.30,
-    'color': 0.25,
-    'flow':  0.35,
-    'beige': 0.10,
-}
-
-# Pesos para modo textil: con dy_threshold bajo (1.0) el flow funciona,
+# Pesos para detección textil: con dy_threshold bajo (1.0) el flow funciona,
 # color (histograma) detecta bien el producto, beige puede ser 0 si el
 # producto no es crema → no depender de beige.
-_TEXTIL_WEIGHTS: Dict[str, float] = {
+TEXTILE_WEIGHTS: Dict[str, float] = {
     'edge':  0.25,
     'color': 0.30,
     'flow':  0.35,
     'beige': 0.10,
-}
-
-MODE_WEIGHTS: Dict[str, Dict[str, float]] = {
-    'botellas': _DEFAULT_WEIGHTS,
-    'textil':   _TEXTIL_WEIGHTS,
 }
 
 # Umbral mínimo de flow para que la fusión produzca score > 0.
@@ -38,7 +26,7 @@ class SignalValues:
 
 class FusionEngine:
     def __init__(self, weights: Dict[str, float] = None, flow_gate: float = _DEFAULT_FLOW_GATE):
-        self.weights   = dict(weights) if weights else dict(_DEFAULT_WEIGHTS)
+        self.weights   = dict(weights) if weights else dict(TEXTILE_WEIGHTS)
         self.flow_gate = flow_gate
 
     def fuse(self, signals: SignalValues) -> float:

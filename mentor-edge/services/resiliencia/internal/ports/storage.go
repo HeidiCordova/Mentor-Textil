@@ -11,6 +11,8 @@ type EventStorage interface {
 	Store(ctx context.Context, event *domain.EventBuffer) error
 	GetUnsyncedEvents(ctx context.Context, limit int) ([]*domain.EventBuffer, error)
 	GetRecentEvents(ctx context.Context, limit int, since *time.Time) ([]*domain.EventBuffer, error)
+	GetVisionCount(ctx context.Context, since, until time.Time) (*domain.VisionCount, error)
+	GetVisionCounter(ctx context.Context, until time.Time) (*domain.VisionCounter, error)
 	GetPendingEvents(ctx context.Context, limit int) ([]*domain.EventBuffer, error)
 	MarkSynced(ctx context.Context, eventIDs []string) error
 	EventExists(ctx context.Context, eventID string) (bool, error)

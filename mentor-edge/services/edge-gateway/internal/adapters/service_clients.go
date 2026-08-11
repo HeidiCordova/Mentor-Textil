@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"time"
 
 	"edge-gateway/internal/domain"
@@ -75,6 +77,50 @@ func (c *HTTPResilienciaClient) GetRecentEvents(ctx context.Context, limit int, 
 		return nil, fmt.Errorf("decode events: %w", err)
 	}
 	return events, nil
+}
+
+func (c *HTTPResilienciaClient) GetVisionCount(
+	ctx context.Context,
+	lineaID int,
+	since time.Time,
+	until time.Time,
+) (*domain.VisionCountWindow, error) {
+	query := url.Values{}
+	query.Set("linea_id", strconv.Itoa(lineaID))
+	query.Set("since", since.UTC().Format(time.RFC3339Nano))
+	query.Set("until", until.UTC().Format(time.RFC3339Nano))
+
+	endpoint := c.baseURL + "/vision/count?" + query.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("resiliencia unreachable: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("resiliencia returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result domain.VisionCountWindow
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode vision count: %w", err)
+	}
+	if result.LineaID != lineaID {
+		return nil, fmt.Errorf("vision count line mismatch: requested %d, received %d", lineaID, result.LineaID)
+	}
+	if result.Count < 0 ||
+		result.Since.IsZero() ||
+		result.Until.IsZero() ||
+		!result.Until.After(result.Since) {
+		return nil, fmt.Errorf("invalid vision count response")
+	}
+	return &result, nil
 }
 
 func (c *HTTPResilienciaClient) GetPendingEvents(ctx context.Context, limit int) ([]domain.Event, error) {

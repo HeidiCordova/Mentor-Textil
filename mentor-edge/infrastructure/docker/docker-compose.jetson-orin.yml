@@ -1,3 +1,5 @@
+name: docker
+
 services:
 
   postgres:
@@ -55,7 +57,17 @@ services:
       CALIBRATION_SAMPLES: ${CALIBRATION_SAMPLES:-30}
       CALIBRATION_MIN_QUALITY: ${CALIBRATION_MIN_QUALITY:-0.90}
       CALIBRATION_EXPIRY_DAYS: ${CALIBRATION_EXPIRY_DAYS:-90}
+      EVENT_SPOOL_PATH: /var/lib/mentor/vision-events.sqlite3
+      OEE_STATE_FILE: /var/lib/mentor/last_oee_emit
+      EVENT_SPOOL_MAX_EVENTS: ${EVENT_SPOOL_MAX_EVENTS:-10000}
+      EVENT_SPOOL_MAX_EVENT_BYTES: ${EVENT_SPOOL_MAX_EVENT_BYTES:-65536}
+      EVENT_RETRY_INITIAL_S: ${EVENT_RETRY_INITIAL_S:-1}
+      EVENT_RETRY_MAX_S: ${EVENT_RETRY_MAX_S:-60}
+      EVENT_RETRY_MAX_ATTEMPTS: ${EVENT_RETRY_MAX_ATTEMPTS:-0}
+      EVENT_HTTP_TIMEOUT_S: ${EVENT_HTTP_TIMEOUT_S:-5}
       TZ: ${TZ:-America/Lima}
+    volumes:
+      - vision_event_spool:/var/lib/mentor
     depends_on:
       postgres:
         condition: service_healthy
@@ -238,10 +250,8 @@ services:
         limits:
           memory: 32M
 
-  # yolo-counter NO corre en Docker — se despliega como servicio systemd nativo en el host
-  # porque requiere CUDA/TensorRT/cuDNN ya instalados (DeepStream 7.1).
-  # Ver: mentor-edge/services/yolo-counter/install.sh
-
 volumes:
   pgdata:
+    driver: local
+  vision_event_spool:
     driver: local

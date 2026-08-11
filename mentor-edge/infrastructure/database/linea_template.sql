@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS {schema}.line_config (
     fsm             JSONB NOT NULL DEFAULT '{}',
     mode            VARCHAR(16) NOT NULL DEFAULT 'textil',
     camera          JSONB,
-    oee             JSONB NOT NULL DEFAULT '{"line_name":"","micro_stop_max_s":210,"stop_max_s":300,"snapshot_interval_s":300}',
+    oee             JSONB NOT NULL DEFAULT '{"line_name":"","micro_stop_max_s":120,"stop_max_s":86400,"snapshot_interval_s":1800,"vel_unit":"uh","vel_nominal_us":0.008333333}',
     cloud           JSONB NOT NULL DEFAULT '{"sync_interval_s":300}',
     tablet          JSONB,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
@@ -234,7 +234,10 @@ CREATE TABLE IF NOT EXISTS {schema}.production_runs (
     synced          BOOLEAN DEFAULT FALSE,
     synced_at       TIMESTAMPTZ,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ DEFAULT NOW()
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT {schema}_production_runs_run_id_uq UNIQUE (run_id),
+    CONSTRAINT {schema}_production_runs_time_ck
+        CHECK (ended_at IS NULL OR ended_at >= started_at)
 );
 
 CREATE INDEX IF NOT EXISTS idx_{schema}_run_time
@@ -242,6 +245,9 @@ CREATE INDEX IF NOT EXISTS idx_{schema}_run_time
 CREATE INDEX IF NOT EXISTS idx_{schema}_run_pending
     ON {schema}.production_runs (synced)
     WHERE synced = false;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_{schema}_run_one_open
+    ON {schema}.production_runs (device_id)
+    WHERE ended_at IS NULL;
 
 -- ═══════════════════════════════════════════════════════════════
 -- 8. OEE SNAPSHOTS
@@ -276,6 +282,7 @@ CREATE INDEX IF NOT EXISTS idx_{schema}_oee_hora  ON {schema}.oee_snapshots (hor
 CREATE TABLE IF NOT EXISTS {schema}.vision_detections (
     id           BIGSERIAL   PRIMARY KEY,
     detection_id UUID        NOT NULL,
+    device_id    VARCHAR(100),
     detected_at  TIMESTAMPTZ NOT NULL,
     line_code    VARCHAR(64),
     confidence   REAL,
@@ -284,6 +291,7 @@ CREATE TABLE IF NOT EXISTS {schema}.vision_detections (
     signal_flow  REAL,
     signal_beige REAL,
     roi_id       VARCHAR(32),
+    fsm_state    VARCHAR(32),
     CONSTRAINT {schema}_vision_det_uq UNIQUE (detection_id)
 );
 
@@ -294,6 +302,101 @@ CREATE INDEX IF NOT EXISTS idx_{schema}_vd_conf
 
 ALTER TABLE {schema}.vision_detections SET (autovacuum_vacuum_scale_factor = 0.05);
 
+CREATE TABLE IF NOT EXISTS {schema}.vision_counter_state (
+    counter_name  VARCHAR(64) PRIMARY KEY,
+    counter_epoch TIMESTAMPTZ NOT NULL,
+    counter_baseline BIGINT   NOT NULL DEFAULT 0
+        CHECK (counter_baseline >= 0),
+    counter_value BIGINT      NOT NULL DEFAULT 0
+        CHECK (counter_value >= 0),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO {schema}.vision_counter_state (
+    counter_name,
+    counter_epoch,
+    counter_baseline,
+    counter_value
+)
+VALUES (
+    'CORTE_TOTAL',
+    date_trunc('hour', CURRENT_TIMESTAMP)
+        + ((EXTRACT(MINUTE FROM CURRENT_TIMESTAMP)::INTEGER / 5)
+           * INTERVAL '5 minutes'),
+    0,
+    0
+)
+ON CONFLICT (counter_name) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS {schema}.vision_counter_snapshots (
+    counter_name  VARCHAR(64) NOT NULL,
+    counter_epoch TIMESTAMPTZ NOT NULL,
+    counter_until TIMESTAMPTZ NOT NULL,
+    counter_value BIGINT      NOT NULL
+        CHECK (counter_value >= 0),
+    state_updated_at TIMESTAMPTZ NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (counter_name, counter_epoch, counter_until)
+);
+
+CREATE OR REPLACE FUNCTION {schema}.increment_vision_counter()
+RETURNS TRIGGER AS $$
+DECLARE
+    active_epoch TIMESTAMPTZ;
+    affected_rows INTEGER;
+BEGIN
+    SELECT counter_epoch
+    INTO active_epoch
+    FROM {schema}.vision_counter_state
+    WHERE counter_name = 'CORTE_TOTAL';
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION
+            'CORTE_TOTAL counter state is missing';
+    END IF;
+
+    IF NEW.detected_at < active_epoch THEN
+        RETURN NEW;
+    END IF;
+
+    UPDATE {schema}.vision_counter_state
+    SET counter_value = counter_value + 1,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE counter_name = 'CORTE_TOTAL'
+      AND NEW.detected_at >= counter_epoch;
+
+    GET DIAGNOSTICS affected_rows = ROW_COUNT;
+    IF affected_rows <> 1 THEN
+        RAISE EXCEPTION
+            'CORTE_TOTAL counter state changed during increment';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_increment_vision_counter
+    ON {schema}.vision_detections;
+CREATE TRIGGER trg_increment_vision_counter
+AFTER INSERT ON {schema}.vision_detections
+FOR EACH ROW EXECUTE FUNCTION {schema}.increment_vision_counter();
+
+CREATE OR REPLACE FUNCTION {schema}.vision_try_real(value TEXT)
+RETURNS REAL AS $$
+BEGIN
+    IF value IS NULL
+       OR value !~ '^[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][+-]?[0-9]+)?$'
+    THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN value::REAL;
+EXCEPTION
+    WHEN invalid_text_representation OR numeric_value_out_of_range
+    THEN RETURN NULL;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
 CREATE OR REPLACE FUNCTION {schema}.extract_vision_detection()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -301,27 +404,76 @@ BEGIN
         RETURN NEW;
     END IF;
     INSERT INTO {schema}.vision_detections (
-        detection_id, detected_at, line_code,
-        confidence, signal_edge, signal_color, signal_flow, signal_beige, roi_id
+        detection_id, device_id, detected_at, line_code,
+        confidence, signal_edge, signal_color, signal_flow, signal_beige,
+        roi_id, fsm_state
     ) VALUES (
-        NEW.event_id, NEW.timestamp,
+        NEW.event_id, NEW.device_id, NEW.timestamp,
         NEW.payload ->> 'line_code',
-        (NEW.payload ->> 'confidence')::REAL,
-        (NEW.payload -> 'signals' ->> 'edge')::REAL,
-        (NEW.payload -> 'signals' ->> 'color')::REAL,
-        (NEW.payload -> 'signals' ->> 'flow')::REAL,
-        (NEW.payload -> 'signals' ->> 'beige')::REAL,
-        NEW.payload ->> 'roi_id'
+        {schema}.vision_try_real(NEW.payload ->> 'confidence'),
+        {schema}.vision_try_real(NEW.payload -> 'signals' ->> 'edge'),
+        {schema}.vision_try_real(NEW.payload -> 'signals' ->> 'color'),
+        {schema}.vision_try_real(NEW.payload -> 'signals' ->> 'flow'),
+        {schema}.vision_try_real(NEW.payload -> 'signals' ->> 'beige'),
+        NEW.payload ->> 'roi_id',
+        NEW.payload ->> 'fsm_state'
     )
     ON CONFLICT (detection_id) DO NOTHING;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_extract_vision_detection ON {schema}.events_buffer;
 DROP TRIGGER IF EXISTS trg_{schema}_extract_vision ON {schema}.events_buffer;
-CREATE TRIGGER trg_{schema}_extract_vision
+CREATE TRIGGER trg_extract_vision_detection
 AFTER INSERT ON {schema}.events_buffer
 FOR EACH ROW EXECUTE FUNCTION {schema}.extract_vision_detection();
+
+CREATE OR REPLACE FUNCTION {schema}.protect_vision_counter_history()
+RETURNS TRIGGER AS $$
+DECLARE
+    active_epoch TIMESTAMPTZ;
+BEGIN
+    SELECT counter_epoch
+    INTO active_epoch
+    FROM {schema}.vision_counter_state
+    WHERE counter_name = 'CORTE_TOTAL';
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'CORTE_TOTAL counter state is missing';
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        IF OLD.detected_at >= active_epoch THEN
+            RAISE EXCEPTION
+                'active vision counter history is append-only';
+        END IF;
+        RETURN OLD;
+    END IF;
+
+    IF (
+        OLD.detection_id IS DISTINCT FROM NEW.detection_id
+        OR OLD.detected_at IS DISTINCT FROM NEW.detected_at
+    ) AND (
+        OLD.detected_at >= active_epoch
+        OR NEW.detected_at >= active_epoch
+    ) THEN
+        RAISE EXCEPTION
+            'active vision counter identity and timestamp are immutable';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_protect_vision_counter_history
+    ON {schema}.vision_detections;
+CREATE TRIGGER trg_protect_vision_counter_history
+BEFORE UPDATE OF detection_id, detected_at OR DELETE
+ON {schema}.vision_detections
+FOR EACH ROW
+EXECUTE FUNCTION {schema}.protect_vision_counter_history();
 
 -- ═══════════════════════════════════════════════════════════════
 -- 10. CATÁLOGOS — Réplica exacta de tablas cloud (12_linea_template)

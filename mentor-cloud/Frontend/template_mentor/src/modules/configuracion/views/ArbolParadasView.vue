@@ -254,7 +254,7 @@ const downloadTemplate = async () => {
   if (!noProgData.length) noProgData = [emptyRow()]
 
   const wb = new ExcelJS.Workbook()
-  wb.creator = 'Mentor Monitor'
+  wb.creator = 'Mentor Textil'
   buildStyledSheet(wb, 'Paradas Programadas',    progData,   'FF15803D', 'FFF0FDF4')
   buildStyledSheet(wb, 'Paradas No Programadas', noProgData, 'FFB45309', 'FFFEFCE8')
 

@@ -15,8 +15,8 @@
 Plataforma industrial distribuida para monitoreo de producción y energía en tiempo real mediante visión artificial, IoT y telemetría industrial. Sistema completo de medición OEE (Overall Equipment Effectiveness) con tres componentes principales:
 
 **1. Edge Computing - Jetson Orin (Visión Artificial)**
-- Detección de eventos de producción mediante cámara IP y YOLO v8
-- Procesamiento en tiempo real con GPU NVIDIA + TensorRT
+- Detección de eventos de producción mediante cámara IP y fusión de señales visuales
+- Procesamiento en tiempo real con aceleración NVIDIA NVDEC y OFA
 - Buffer offline-first con resiliencia de 6 meses en PostgreSQL local
 - Microservicios en Go y Python con arquitectura hexagonal
 
@@ -44,7 +44,7 @@ Plataforma industrial distribuida para monitoreo de producción y energía en ti
 
 ### Edge Computing (Jetson Orin)
 - **Lenguajes**: Python 3.10, Go 1.24
-- **Computer Vision**: OpenCV, YOLO v8, TensorRT, CUDA
+- **Computer Vision**: OpenCV, Canny, histogramas HSV, optical flow
 - **Hardware Acceleration**: NVIDIA NVDEC, OFA (Optical Flow Accelerator)
 - **Servicios**: vision-event-detector, resiliencia, enviador, edge-gateway, edge-config
 - **Base de Datos**: PostgreSQL 14
@@ -89,7 +89,6 @@ Plataforma industrial distribuida para monitoreo de producción y energía en ti
 - Vue.js 3 (Composition API)
 - Gin (Go web framework)
 - OpenCV
-- TensorRT
 - Capacitor
 - Tailwind CSS
 
@@ -101,10 +100,9 @@ Plataforma industrial distribuida para monitoreo de producción y energía en ti
 - Industrial Protocols
 
 ### Computer Vision y AI
-- YOLO v8 Object Detection
+- Multi-signal Event Detection (Edge, HSV, Optical Flow, Beige)
 - Optical Flow Processing
 - Hardware-Accelerated Video Decoding
-- TensorRT Optimization
 - FSM-based Event Detection
 
 ### Arquitectura y Patrones
@@ -146,7 +144,7 @@ Plataforma industrial distribuida para monitoreo de producción y energía en ti
 - Procesamiento en tiempo real: 30 FPS con latencia <100ms
 - Aceleración GPU para decodificación de video y optical flow
 - Pipeline asíncrono con goroutines (Go concurrency)
-- Optimización TensorRT para inferencia YOLO
+- Optimización de decodificación y optical flow en hardware dedicado
 - Batch processing para ingesta de datos
 
 ### Escalabilidad
@@ -183,12 +181,11 @@ Plataforma industrial distribuida para monitoreo de producción y energía en ti
 - Consumo: 7W-25W
 
 **Servicios Edge:**
-- `vision-event-detector` (Python :8001) - Motor de visión con 4 señales: Edge Detection, HSV Color, Optical Flow, YOLO
+- `vision-event-detector` (Python :8001) - Motor de visión con 4 señales: Edge Detection, HSV Color, Optical Flow, Beige
 - `resiliencia` (Go :8002) - Buffer PostgreSQL con deduplicación
 - `enviador` (Go :8003) - Sincronización edge→cloud con 6 goroutines
 - `edge-gateway` (Go :8005) - API unificada + SSE broker
 - `edge-config-service` (Go :8004) - Gestión de configuración dinámica
-- `yolo-counter` (Python :8006) - Conteo de productos con YOLO
 - `ui-local` (Vue 3 :8080) - Dashboard web local
 
 **Capacidades:**
@@ -314,7 +311,7 @@ vision-event-detector (hot-reload)
 - Procesamiento de video 30 FPS con latencia <100ms
 - Decodificación H.264 por hardware (NVDEC)
 - Optical flow acelerado por chip OFA (~6.5ms)
-- Inferencia YOLO optimizada con TensorRT
+- Procesamiento de optical flow acelerado por hardware
 - Sincronización cloud con throughput >1000 eventos/min
 
 ### Reliability
@@ -348,7 +345,7 @@ vision-event-detector (hot-reload)
 **Solución**:
 - Hardware acceleration con NVDEC para decodificación H.264
 - OFA chip dedicado para optical flow
-- TensorRT para optimización de YOLO
+- Procesamiento de señales visuales con OpenCV
 - Pipeline asíncrono con multiprocessing
 
 ### 2. Resiliencia Offline

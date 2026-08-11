@@ -2,7 +2,7 @@
 -- Seed: OEE sintético para demo — Art Atlas S.A.
 -- Base de datos destino : mentor_planta_14
 -- Período cubierto      : 2026-04-08 08:05 a 2026-04-11 11:00 (Lima, UTC-5)
--- Ventana de snapshot   : 1800 s (30 min) — pasa filtro >= 300 del dashboard
+-- Ventana de snapshot   : 1800 s (30 min) — pasa filtro >= 1800 del dashboard
 -- Líneas                : linea_11 (Maquina01) | linea_12 (linea3)
 --                         linea_13 (linea4)    | linea_14 (linea1)
 -- Productos textiles    : TXT-01 a TXT-05
@@ -170,9 +170,9 @@ BEGIN
                         ELSE 'NOCHE'
                     END,
                     'head', jsonb_build_array(
-                        'CONTEO_1','CONTEO_2','T_DISPONIBLE',
+                        'CONTEO_1','T_DISPONIBLE',
                         'T_MICROPARADA','T_PARADA_NO_ASIGNADA',
-                        'MARCA','SABOR','TAMANIO','MATERIAL','DESTINO',
+                        'MARCA','TAMANIO','MATERIAL','DESTINO',
                         'T_REFRIGERIO','T_CAPACITACION_OBLIGATORIA',
                         'T_MANTENIMIENTO_PLANIFICADO',
                         'T_PARADA_PROGRAMADA','T_PARADA_NO_PROGRAMADA',

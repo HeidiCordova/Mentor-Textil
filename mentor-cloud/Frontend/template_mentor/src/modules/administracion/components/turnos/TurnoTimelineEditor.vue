@@ -12,22 +12,12 @@ const DIAS    = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'
 const COLORES = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#a855f7', '#ec4899', '#84cc16']
 
 const intervalConfig = computed(() => {
-  const mode = props.linea?.mode || 'botellas'
-  if (mode === 'textil') {
-    return {
-      intervalS: 1800,
-      intervalMin: 30,
-      label: 'textil (intervalos de 30 minutos)',
-      description: 'Las líneas textil generan snapshots cada 30 minutos (:00 y :30)',
-      validMinutes: [0, 30]
-    }
-  }
   return {
-    intervalS: 300,
-    intervalMin: 5,
-    label: 'botellas (intervalos de 5 minutos)',
-    description: 'Las líneas botellas generan snapshots cada 5 minutos',
-    validMinutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+    intervalS: 1800,
+    intervalMin: 30,
+    label: 'textil (intervalos de 30 minutos)',
+    description: 'Las líneas textiles generan snapshots cada 30 minutos (:00 y :30)',
+    validMinutes: [0, 30]
   }
 })
 

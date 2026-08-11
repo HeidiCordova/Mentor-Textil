@@ -165,6 +165,7 @@ func (s *HTTPServer) registerRoutes() {
 	s.mux.HandleFunc("/edge/buffer/summary", s.handleBufferSummary)
 	s.mux.HandleFunc("/edge/events/recent", s.handleRecentEvents)
 	s.mux.HandleFunc("/edge/events/pending", s.handlePendingEvents)
+	s.mux.HandleFunc("/edge/vision/count", s.handleVisionCount)
 
 	// Stops
 	s.mux.HandleFunc("/edge/stops", s.handleStops)
@@ -542,6 +543,21 @@ func (s *HTTPServer) handleRecentEvents(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	s.jsonResponse(w, http.StatusOK, events)
+}
+
+func (s *HTTPServer) handleVisionCount(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.methodNotAllowed(w)
+		return
+	}
+
+	lineID := s.lineaIDFor(r)
+	result, err := s.gatewayFor(r).VisionCount(r.Context(), lineID)
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	s.jsonResponse(w, http.StatusOK, result)
 }
 
 func (s *HTTPServer) handlePendingEvents(w http.ResponseWriter, r *http.Request) {
@@ -1039,7 +1055,12 @@ func (s *HTTPServer) handleProducts(w http.ResponseWriter, r *http.Request) {
 		if localLid > 0 && (p.LineaID == nil || *p.LineaID != localLid) {
 			continue
 		}
-		out = append(out, domain.ProductEntry{SKU: p.Codigo, Description: p.Nombre, Active: p.Activo})
+		out = append(out, domain.ProductEntry{
+			ProductoID:  p.ID,
+			SKU:         p.Codigo,
+			Description: p.Nombre,
+			Active:      p.Activo,
+		})
 	}
 	s.jsonResponse(w, http.StatusOK, out)
 }
@@ -1383,8 +1404,10 @@ func (s *HTTPServer) queryInt(r *http.Request, key string, defaultVal int) int {
 func (s *HTTPServer) handleProductionRuns(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
+		localLineID := s.lineaIDFor(r)
 		filter := domain.ProductionRunFilter{
-			Limit: s.queryInt(r, "limit", 200),
+			LineaID: &localLineID,
+			Limit:    s.queryInt(r, "limit", 200),
 		}
 		if v := r.URL.Query().Get("since"); v != "" {
 			if t, err := time.Parse(time.RFC3339, v); err == nil {
@@ -1394,11 +1417,6 @@ func (s *HTTPServer) handleProductionRuns(w http.ResponseWriter, r *http.Request
 		if v := r.URL.Query().Get("until"); v != "" {
 			if t, err := time.Parse(time.RFC3339, v); err == nil {
 				filter.Until = &t
-			}
-		}
-		if v := r.URL.Query().Get("linea_id"); v != "" {
-			if n, err := strconv.Atoi(v); err == nil {
-				filter.LineaID = &n
 			}
 		}
 		runs, err := s.gatewayFor(r).ListProductionRuns(r.Context(), filter)
@@ -1417,6 +1435,9 @@ func (s *HTTPServer) handleProductionRuns(w http.ResponseWriter, r *http.Request
 			s.badRequest(w, "invalid JSON body")
 			return
 		}
+		localLineID := s.lineaIDFor(r)
+		req.LineaID = &localLineID
+		req.DeviceID = s.deviceID
 		actor := s.extractActor(r)
 		runs, err := s.gatewayFor(r).UpsertProductionRun(r.Context(), req, actor)
 		if err != nil {

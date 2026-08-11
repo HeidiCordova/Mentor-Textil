@@ -82,7 +82,7 @@ El sistema esta compuesto por tres subsistemas interdependientes, cada uno docum
 
 | Capa | Servicios activos | Cantidad |
 |---|---|---|
-| Edge | vision-event-detector, resiliencia, enviador, edge-config-service, edge-gateway, yolo-counter, ui-local, PostgreSQL | 8 |
+| Edge | vision-event-detector, resiliencia, enviador, edge-config-service, edge-gateway, ui-local, PostgreSQL | 7 |
 | Cloud | cloud-gateway, cloud-identity, cloud-ingest, cloud-config, cloud-analytics, cloud-integration, cloud-frontend, PostgreSQL | 8 |
 | Tablet | mentor-tablet-app (Vue 3 + Capacitor) | 1 |
 
@@ -100,7 +100,6 @@ graph TD
         ENV["enviador\n:8003"]
         ECS["edge-config-service\n:8004"]
         EGW["edge-gateway\n:8005"]
-        YOL["yolo-counter\n:8006"]
         UIL["ui-local\n:8080"]
         PGE[("PostgreSQL 14\n:5432")]
         VED --> RES
@@ -108,7 +107,6 @@ graph TD
         RES --> ENV
         VED --> EGW
         ECS --> VED
-        YOL --> RES
     end
 
     subgraph CLOUD ["VPS Linux — Cloud"]

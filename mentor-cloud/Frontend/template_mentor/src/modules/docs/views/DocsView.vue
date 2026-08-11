@@ -4,7 +4,7 @@
     <div class="docs-header">
       <div>
         <h1 class="docs-title">Documentacion de Usuario</h1>
-        <p class="docs-subtitle">Guia paso a paso para configurar Mentor Monitor desde cero</p>
+        <p class="docs-subtitle">Guía paso a paso para configurar Mentor Textil desde cero</p>
       </div>
       <div class="docs-tabs">
         <button v-for="tab in tabs" :key="tab.id"
@@ -22,7 +22,7 @@
 
         <div class="doc-section">
           <h2 class="section-title">Arquitectura del sistema</h2>
-          <p class="section-desc">Mentor Monitor opera en dos capas: el edge (planta) y el cloud (servidor central). Ambas capas se comunican via HTTPS usando identificadores unicos por linea de produccion.</p>
+          <p class="section-desc">Mentor Textil opera en dos capas: el edge (planta) y el cloud (servidor central). Ambas capas se comunican vía HTTPS usando identificadores únicos por línea de producción.</p>
 
           <div class="arch-diagram">
             <div class="arch-col">

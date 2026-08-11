@@ -182,6 +182,10 @@ func RegisterLineaRoutes(r *gin.RouterGroup, repo *repository.LineaRepo, mw *por
 		if l.Mode == "" {
 			l.Mode = "textil"
 		}
+		if !validModes[l.Mode] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "mode debe ser 'textil'"})
+			return
+		}
 		if err := repo.Create(c.Request.Context(), &l); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -208,6 +212,10 @@ func RegisterLineaRoutes(r *gin.RouterGroup, repo *repository.LineaRepo, mw *por
 		}
 		if l.Mode == "" {
 			l.Mode = "textil"
+		}
+		if !validModes[l.Mode] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "mode debe ser 'textil'"})
+			return
 		}
 		if err := repo.Update(c.Request.Context(), &l); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -244,7 +252,6 @@ func seedDefaultParadaVariables(ctx context.Context, varRepo *repository.Variabl
 		{"MATERIAL", "Material", "OTRO"},
 		{"DESTINO", "Destino", "OTRO"},
 		{"MARCA", "Marca", "OTRO"},
-		{"SABOR", "Sabor", "OTRO"},
 		{"TAMANIO", "Tamaño", "OTRO"},
 		{"CONTEO_UNITARIO_PRINCIPAL", "Conteo Unitario Principal", "OTRO"},
 		{"T_MICROPARADA", "Tiempo de Microparada", "OTRO"},
@@ -273,7 +280,7 @@ func seedDefaultParadaVariables(ctx context.Context, varRepo *repository.Variabl
 // que acumulan indefinidamente (conteo, merma). Llamar después de seedDefaultParadaVariables.
 func seedDerivedVariables(ctx context.Context, varRepo *repository.VariableRepo, d *domain.Dispositivo) {
 	deviceID := d.ID
-	sources := []string{"CONTEO_UNITARIO_PRINCIPAL", "MERMA", "CONTEO_1", "CONTEO_2"}
+	sources := []string{"CONTEO_UNITARIO_PRINCIPAL", "MERMA", "CONTEO_1"}
 	for _, src := range sources {
 		base, err := varRepo.FindByClave(ctx, src, deviceID)
 		if err != nil || base == nil {

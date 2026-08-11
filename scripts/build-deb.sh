@@ -75,7 +75,6 @@ mkdir -p \
   "$BUILD_DIR/opt/mentor-edge/services/ui-local/dist" \
   "$BUILD_DIR/opt/mentor-edge/services/tablet-app/dist" \
   "$BUILD_DIR/opt/mentor-edge/services/vision-event-detector" \
-  "$BUILD_DIR/opt/mentor-edge/services/yolo-counter" \
   "$BUILD_DIR/etc/mentor-edge" \
   "$BUILD_DIR/usr/bin" \
   "$BUILD_DIR/lib/systemd/system" \
@@ -186,11 +185,6 @@ done
 # vision-event-detector (Python — se construye en el Jetson, necesita GPU base image)
 cp -r "$EDGE_ROOT/services/vision-event-detector/." \
   "$BUILD_DIR/opt/mentor-edge/services/vision-event-detector/"
-
-# yolo-counter (systemd nativo — NO va en Docker)
-cp "$EDGE_ROOT/services/yolo-counter/install.sh"        "$BUILD_DIR/opt/mentor-edge/services/yolo-counter/"
-cp "$EDGE_ROOT/services/yolo-counter/yolo-counter.service" "$BUILD_DIR/opt/mentor-edge/services/yolo-counter/"
-cp "$EDGE_ROOT/services/yolo-counter/requirements.txt"  "$BUILD_DIR/opt/mentor-edge/services/yolo-counter/"
 
 echo "  ✓ SQL e infraestructura copiados"
 
@@ -626,8 +620,6 @@ printf "  %-20s %s\n" "Gateway:"     "http://$(hostname -I | awk '{print $1}'):8
 printf "  %-20s %s\n" "Logs:"        "journalctl -fu mentor-edge"
 echo "└──────────────────────────────────────────────────────────┘"
 echo ""
-echo "  Para instalar yolo-counter (requiere JetPack/CUDA):"
-echo "  sudo bash /opt/mentor-edge/services/yolo-counter/install.sh"
 CLIEOF
 chmod +x "$BUILD_DIR/usr/bin/mentor-edge-setup"
 

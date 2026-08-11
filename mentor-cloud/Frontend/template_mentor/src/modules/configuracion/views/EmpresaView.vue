@@ -1059,7 +1059,6 @@ onMounted(() => {
                 <label class="field-label">Modo de detección</label>
                 <select v-model="lineaForm.mode" class="field-select" required>
                   <option value="textil">Textil (microparada &lt; 2 min · snapshot cada 30 min)</option>
-                  <option value="botellas">Botellas (microparada &lt; 3.5 min · snapshot cada 5 min)</option>
                 </select>
               </div>
             </div>

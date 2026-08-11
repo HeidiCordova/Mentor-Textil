@@ -132,3 +132,8 @@ class EventFSM:
     @property
     def state(self) -> State:
         return self._state
+
+
+# Backward-compatible import path. The maintained implementation lives in the
+# explicitly textile-only module.
+from .textile_separator_fsm import EventFSM, FSMConfig, State  # noqa: E402,F401

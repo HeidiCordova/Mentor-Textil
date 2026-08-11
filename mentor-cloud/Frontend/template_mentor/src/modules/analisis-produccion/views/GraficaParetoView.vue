@@ -356,10 +356,13 @@ const consultaRealizada = ref(false)
 const paradas           = ref([])   // raw stops from API
 const datosPareto       = ref([])
 
-const lineaMode = computed(() => lineas.value.find(l => l.id === lineaSeleccionada.value)?.mode ?? 'botellas')
-const intervalConfig = computed(() => lineaMode.value === 'textil'
-  ? { msStep: 1800000, sliderMax: 1, minuteMultiplier: 30, divisor: 30 }
-  : { msStep: 300000,  sliderMax: 11, minuteMultiplier: 5,  divisor: 5  })
+const lineaMode = computed(() => lineas.value.find(l => l.id === lineaSeleccionada.value)?.mode ?? 'textil')
+const intervalConfig = computed(() => ({
+  msStep: 1800000,
+  sliderMax: 1,
+  minuteMultiplier: 30,
+  divisor: 30
+}))
 
 // ── Fechas ──────────────────────────────────────────────────────────────────
 const pad2 = n => String(n).padStart(2, '0')

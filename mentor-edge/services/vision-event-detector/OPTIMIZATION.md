@@ -204,7 +204,7 @@ Configurables via variables de entorno en `docker-compose.jetson-orin.yml` o en 
 | `FRAME_SKIP` | `3` | Procesar 1 de cada N frames. No bajar de 3. |
 | `SIGNAL_SCALE` | `0.75` | Escala del ROI antes de signals (0.5–1.0). |
 | `FRAME_BACKEND` | `gstreamer` | Backend de captura. Usar siempre `gstreamer` en Jetson. |
-| `OEE_INTERVAL` | `300` | Intervalo en segundos para emitir métricas OEE. |
+| `OEE_INTERVAL` | `1800` | Intervalo textil en segundos para emitir métricas OEE. |
 
 ---
 

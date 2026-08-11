@@ -73,7 +73,7 @@ BEGIN
         ('Tiempo Capacitación',          'T_CAPACITACION_OBLIGATORIA', '0', 'integer', v_dispositivo_id, :planta_id, :empresa_id),
         ('Tiempo Mantenimiento',         'T_MANTENIMIENTO_PLANIFICADO','0', 'integer', v_dispositivo_id, :planta_id, :empresa_id),
         ('Merma',                        'MERMA',                      '0', 'integer', v_dispositivo_id, :planta_id, :empresa_id),
-        ('Intervalo OEE (s)',            'OEE_INTERVAL_S',             '300', 'integer', v_dispositivo_id, :planta_id, :empresa_id)
+        ('Intervalo OEE (s)',            'OEE_INTERVAL_S',             '1800', 'integer', v_dispositivo_id, :planta_id, :empresa_id)
     ON CONFLICT (clave, dispositivo_id) DO NOTHING;
 
     RAISE NOTICE 'Dispositivo % registrado OK (dispositivo_id=%)', :device_id, v_dispositivo_id;

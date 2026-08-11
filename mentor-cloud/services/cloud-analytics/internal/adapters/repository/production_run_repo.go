@@ -51,12 +51,12 @@ func (r *productionRunRepo) List(ctx context.Context, f ports.ProductionRunFilte
 		idx++
 	}
 	if f.Since != nil {
-		conditions = append(conditions, fmt.Sprintf("started_at >= $%d", idx))
+		conditions = append(conditions, fmt.Sprintf("(ended_at IS NULL OR ended_at > $%d)", idx))
 		args = append(args, *f.Since)
 		idx++
 	}
 	if f.Until != nil {
-		conditions = append(conditions, fmt.Sprintf("started_at <= $%d", idx))
+		conditions = append(conditions, fmt.Sprintf("started_at < $%d", idx))
 		args = append(args, *f.Until)
 		idx++
 	}

@@ -74,7 +74,6 @@ mentor-monitor/
 │   │   ├── analisis-avanzado/    # Análisis avanzado
 │   │   │   └── views/
 │   │   │       ├── GeneradorConsultasView.vue
-│   │   │       └── KwhlView.vue
 │   │   │
 │   │   ├── analisis-energia/     # Análisis energético
 │   │   │   └── views/

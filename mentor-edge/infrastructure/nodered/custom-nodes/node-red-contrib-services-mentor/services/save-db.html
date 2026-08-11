@@ -1,0 +1,64 @@
+<script type="text/javascript">
+    RED.nodes.registerType('SaveDB',{
+        category: 'Mentor Services',
+        color: '#b6bbc2',
+        defaults: {
+            name: {value:""},
+            mentor: {value:"", type:"mentor-config"},
+            mysql: {value:"", type:"MySQLdb"},
+            interval: {value:5},
+            strictDelta: {value:false}
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "service.png",
+        label: function() {
+            return this.name || "SaveDB";
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="SaveDB">
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-mentor"><i class="icon-globe"></i> Mentor Id</label>
+        <input type="text" id="node-input-mentor">
+    </div>
+    <div class="form-row">
+        <label for="node-input-mysql"><i class="fa fa-database"></i> MySQL DB</label>
+        <input type="text" id="node-input-mysql">
+    </div>
+    <div class="form-row">
+        <label for="node-input-interval"><i class="icon-repeat"></i> Legacy interval [min.]</label>
+        <input type="number" id="node-input-interval" min="0">
+    </div>
+    <div class="form-row">
+        <label for="node-input-strictDelta">
+            <i class="fa fa-shield"></i> Strict delta
+        </label>
+        <input
+            type="checkbox"
+            id="node-input-strictDelta"
+            style="display:inline-block; width:auto; vertical-align:top;"
+        >
+        <span style="margin-left:8px;">Immutable device/time windows</span>
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="SaveDB">
+    <p>Persists Mentor messages in MySQL.</p>
+    <p>
+        When <b>Strict delta</b> is enabled, every valid input is treated as a closed,
+        immutable window keyed by <code>(device,time)</code>. Exact retries succeed,
+        conflicting content is rejected, and Timeout/NaN values are never replaced
+        with an older snapshot.
+    </p>
+    <p>
+        Strict delta requires unique indexes on
+        <code>mqtt_lecturas(device,time)</code> and <code>mqtt_snapshot(device)</code>.
+        The legacy interval only applies when strict delta is disabled.
+    </p>
+</script>

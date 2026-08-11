@@ -60,6 +60,18 @@ func (r *PostgresRepo) SetSchema(s string) { r.schema = s }
 
 func (r *PostgresRepo) evtbl() string { return `"` + r.schema + `".events_buffer` }
 
+func (r *PostgresRepo) vdtbl() string {
+	return `"` + strings.ReplaceAll(r.schema, `"`, `""`) + `"."vision_detections"`
+}
+
+func (r *PostgresRepo) vctbl() string {
+	return `"` + strings.ReplaceAll(r.schema, `"`, `""`) + `"."vision_counter_state"`
+}
+
+func (r *PostgresRepo) vcstbl() string {
+	return `"` + strings.ReplaceAll(r.schema, `"`, `""`) + `"."vision_counter_snapshots"`
+}
+
 func (r *PostgresRepo) Store(ctx context.Context, event *domain.EventBuffer) error {
 	query := fmt.Sprintf(`
 		INSERT INTO %s (event_id, device_id, event_type, timestamp, payload, synced, retry_count)
@@ -160,6 +172,162 @@ func (r *PostgresRepo) GetRecentEvents(ctx context.Context, limit int, since *ti
 		events = append(events, event)
 	}
 	return events, rows.Err()
+}
+
+func (r *PostgresRepo) GetVisionCount(
+	ctx context.Context,
+	since time.Time,
+	until time.Time,
+) (*domain.VisionCount, error) {
+	query := fmt.Sprintf(`
+		SELECT COUNT(DISTINCT detection_id), CURRENT_TIMESTAMP
+		FROM %s
+		WHERE detected_at >= $1
+		  AND detected_at < $2
+	`, r.vdtbl())
+
+	result := &domain.VisionCount{
+		Since:     since.UTC(),
+		Until:     until.UTC(),
+		EventType: "CORTE",
+	}
+	if err := r.db.QueryRowContext(ctx, query, since, until).Scan(&result.Count, &result.AsOf); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (r *PostgresRepo) GetVisionCounter(
+	ctx context.Context,
+	until time.Time,
+) (*domain.VisionCounter, error) {
+	result := &domain.VisionCounter{
+		Until:     until.UTC(),
+		EventType: "CORTE",
+	}
+
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// Locking the single state row serializes first-time boundary finalization
+	// with counter increments and with other boundary requests. Each later
+	// statement in this READ COMMITTED transaction sees everything committed
+	// before the lock was acquired.
+	var activeEpoch time.Time
+	if err := tx.QueryRowContext(
+		ctx,
+		fmt.Sprintf(`
+			SELECT counter_epoch
+			FROM %s
+			WHERE counter_name = 'CORTE_TOTAL'
+			FOR UPDATE
+		`, r.vctbl()),
+	).Scan(&activeEpoch); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrVisionCounterBoundary
+		}
+		return nil, err
+	}
+	activeEpoch = activeEpoch.UTC()
+	if until.Before(activeEpoch) {
+		return nil, domain.ErrVisionCounterBoundary
+	}
+
+	// A retry always returns the first frozen answer, even when newer
+	// boundaries already exist.
+	existingQuery := fmt.Sprintf(`
+		SELECT counter_epoch, counter_value, created_at, state_updated_at
+		FROM %s
+		WHERE counter_name = 'CORTE_TOTAL'
+		  AND counter_epoch = $1
+		  AND counter_until = $2
+	`, r.vcstbl())
+	err = tx.QueryRowContext(ctx, existingQuery, activeEpoch, until).Scan(
+		&result.CounterEpoch,
+		&result.Count,
+		&result.AsOf,
+		&result.StateUpdatedAt,
+	)
+	if err == nil {
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return result, nil
+	}
+	if err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	// Never create a boundary older than one already frozen for this epoch.
+	// This preserves monotonic snapshots while still allowing exact retries.
+	var latestUntil sql.NullTime
+	if err := tx.QueryRowContext(
+		ctx,
+		fmt.Sprintf(`
+			SELECT MAX(counter_until)
+			FROM %s
+			WHERE counter_name = 'CORTE_TOTAL'
+			  AND counter_epoch = $1
+		`, r.vcstbl()),
+		activeEpoch,
+	).Scan(&latestUntil); err != nil {
+		return nil, err
+	}
+	if latestUntil.Valid && until.Before(latestUntil.Time.UTC()) {
+		return nil, domain.ErrVisionCounterBoundary
+	}
+
+	// State and vision_detections are read in one MVCC statement. The state
+	// lock prevents a concurrent CORTE insert from committing between this
+	// calculation and the frozen snapshot row.
+	freezeQuery := fmt.Sprintf(`
+		INSERT INTO %s AS stored (
+			counter_name,
+			counter_epoch,
+			counter_until,
+			counter_value,
+			state_updated_at
+		)
+		SELECT
+			s.counter_name,
+			s.counter_epoch,
+			$1::timestamptz,
+			s.counter_value - (
+				SELECT COUNT(*)
+				FROM %s d
+				WHERE d.detected_at >= $1
+				  AND d.detected_at >= s.counter_epoch
+			),
+			s.updated_at
+		FROM %s s
+		WHERE s.counter_name = 'CORTE_TOTAL'
+		  AND $1 >= s.counter_epoch
+		  AND $1 <= CURRENT_TIMESTAMP
+		ON CONFLICT (counter_name, counter_epoch, counter_until)
+		DO UPDATE SET counter_value = stored.counter_value
+		RETURNING counter_epoch, counter_value, created_at, state_updated_at
+	`, r.vcstbl(), r.vdtbl(), r.vctbl())
+	if err := tx.QueryRowContext(ctx, freezeQuery, until).Scan(
+		&result.CounterEpoch,
+		&result.Count,
+		&result.AsOf,
+		&result.StateUpdatedAt,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrVisionCounterBoundary
+		}
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (r *PostgresRepo) GetPendingEvents(ctx context.Context, limit int) ([]*domain.EventBuffer, error) {

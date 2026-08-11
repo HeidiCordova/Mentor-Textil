@@ -21,7 +21,7 @@ func minIntervalS(v int) int {
 	if v > 0 {
 		return v
 	}
-	return 300
+	return 1800
 }
 
 func (r *OEERepository) GetSnapshots(ctx context.Context, f ports.OEEFilter) ([]domain.OEESnapshot, error) {
@@ -44,7 +44,7 @@ func (r *OEERepository) GetSnapshots(ctx context.Context, f ports.OEEFilter) ([]
 	        SELECT nombre, sku FROM %s
 	        WHERE device_id = s.device_id
 	          AND s.hora >= started_at
-	          AND (ended_at IS NULL OR s.hora <= ended_at)
+	          AND (ended_at IS NULL OR s.hora < ended_at)
 	        ORDER BY started_at DESC LIMIT 1
 	      ) pr ON true
 		      WHERE s.interval_s >= %d`, tblSnap, tblRuns, minIntervalS(f.MinIntervalS))
@@ -182,10 +182,10 @@ func (r *OEERepository) GetLatest(ctx context.Context, lineaID int) (*domain.OEE
 		  SELECT nombre, sku FROM %s
 		  WHERE device_id = s.device_id
 		    AND s.hora >= started_at
-		    AND (ended_at IS NULL OR s.hora <= ended_at)
+		    AND (ended_at IS NULL OR s.hora < ended_at)
 		  ORDER BY started_at DESC LIMIT 1
 		) pr ON true
-		WHERE s.linea_id = $1 AND s.interval_s >= 300
+		WHERE s.linea_id = $1 AND s.interval_s >= 1800
 		ORDER BY s.hora DESC LIMIT 1`, tblSnap, tblRuns), lineaID,
 	).Scan(
 		&s.ID, &s.DeviceID, &s.LineaID, &s.PlantaID, &s.EmpresaID,

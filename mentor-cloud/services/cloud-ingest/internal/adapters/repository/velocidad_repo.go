@@ -41,7 +41,7 @@ func (r *VelocidadNominalRepo) GetActiveVelocidad(ctx context.Context, lineaID i
 			JOIN %s vn
 				ON vn.producto_id = COALESCE(pr.producto_id, p.id)
 			WHERE pr.started_at <= $1
-			  AND (pr.ended_at IS NULL OR pr.ended_at >= $1)
+			  AND (pr.ended_at IS NULL OR $1 < pr.ended_at)
 			  AND COALESCE(pr.producto_id, p.id) IS NOT NULL
 			ORDER BY pr.started_at DESC
 			LIMIT 1`, tblRuns, tblProd, tblVel), ts,
@@ -56,7 +56,7 @@ func (r *VelocidadNominalRepo) GetActiveVelocidad(ctx context.Context, lineaID i
 				ON vn.producto_id = COALESCE(pr.producto_id, p.id)
 			WHERE pr.linea_id = $1
 			  AND pr.started_at <= $2
-			  AND (pr.ended_at IS NULL OR pr.ended_at >= $2)
+			  AND (pr.ended_at IS NULL OR $2 < pr.ended_at)
 			  AND COALESCE(pr.producto_id, p.id) IS NOT NULL
 			ORDER BY pr.started_at DESC
 			LIMIT 1`, tblRuns, tblProd, tblVel), lineaID, ts,

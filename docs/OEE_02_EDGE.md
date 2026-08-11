@@ -12,19 +12,19 @@
 
 ## Servicios Edge
 
-El edge ejecuta **7 servicios** Docker orquestados por `docker-compose.jetson-orin.yml`:
+El edge ejecuta sus servicios Docker orquestados por `docker-compose.jetson-orin.yml`:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     JETSON ORIN                              │
 │                                                              │
-│   ┌───────────────────┐     ┌──────────────────┐            │
-│   │ vision-event-      │     │  yolo-counter    │            │
-│   │ detector :8001     │     │  :8006           │            │
-│   │ Python · GPU       │     │  Python · GPU    │            │
-│   └────────┬───────────┘     └───────┬──────────┘            │
-│            │                         │                       │
-│            ▼                         ▼                       │
+│   ┌───────────────────┐                                      │
+│   │ vision-event-      │                                      │
+│   │ detector :8001     │                                      │
+│   │ Python · GPU       │                                      │
+│   └────────┬───────────┘                                      │
+│            │                                                   │
+│            ▼                                                   │
 │   ┌──────────────────────────────────────────┐               │
 │   │        resiliencia :8002 (Go)            │               │
 │   └────────────────┬─────────────────────────┘               │
@@ -139,22 +139,21 @@ producing → sin detección por stop_max_s       → PARADA_NO_ASIGNADA
 ```
 
 - **Modo textil**: microparada < 120s, parada > 120s
-- **Modo botellas**: microparada < 210s, parada > 210s
 - Las paradas se registran via `POST /stops` al gateway con `source: "detector"`
 
 ### OEE Aggregator
 
-Genera un snapshot columnar cada `snapshot_interval_s` (default 300s para botellas, 1800s para textil):
+Genera un snapshot columnar cada `snapshot_interval_s` (default 1800s para textil):
 
 ```json
 {
   "code": "LINEA_1",
   "time": 1711270000000,
   "device_id": "jetson-orin-01",
-  "interval_s": 300,
+  "interval_s": 1800,
   "v": 5,
   "head": ["T_DISPONIBLE", "T_MICROPARADA", "T_PARADA_NO_ASIGNADA", ...],
-  "data": [300000, 15000, 0, ...]
+  "data": [1800000, 15000, 0, ...]
 }
 ```
 
@@ -187,65 +186,7 @@ Se envía a resiliencia como evento tipo `OEE_SNAPSHOT`.
 
 ---
 
-## 2. yolo-counter (Python, :8006)
-
-### Propósito
-Cuenta productos usando YOLO + TensorRT en GPU NVIDIA. Detecta objetos cruzando una línea de conteo configurable y opcionalmente identifica marca por color de tapa.
-
-### Arquitectura
-
-```
-app/
-├── adapters/
-│   ├── config_client.py        → Polling de config cada 5s
-│   ├── http_event_adapter.py   → POST conteos a resiliencia
-│   └── opencv_adapter.py       → RTSP camera client
-├── application/
-│   └── counter_service.py      → frame → YOLO → LineCounter → output
-├── domain/
-│   ├── yolo_engine.py          → DetectionEngine con caché de modelos
-│   ├── line_counter.py         → Lógica de conteo por cruce de línea
-│   ├── roi_manager.py          → Extracción ROI
-│   └── count_aggregator.py     → Snapshots OEE periódicos
-└── http_server.py              → Lab MJPEG stream
-```
-
-### Algoritmo de Conteo
-
-1. Lee frame cada `frame_skip` iteraciones (default 2 → ~15 fps)
-2. YOLO detecta objetos en ROI con modelo configurado
-3. `LineCounter` rastrea centroide de cada detección frame a frame
-4. Si el centroide cruza la línea de conteo → incrementa contador
-5. Dirección configurable: `top_to_bottom` | `left_to_right`
-6. Correlación de marca opcional via `cap_colors` (color de tapa → SKU)
-
-### Configuración YOLO
-
-| Parámetro | Default | Descripción |
-|-----------|---------|-------------|
-| model_name | yolo26s | Modelo: yolo26s, yolo26m, yolo26l, custom |
-| confidence | 0.45 | Umbral de confianza mínima |
-| use_tensorrt | true | Aceleración GPU NVIDIA |
-| counting_line_y | 0.5 | Posición Y de línea de conteo (ratio 0-1) |
-| counting_direction | top_to_bottom | Dirección de conteo |
-| cap_colors | {} | Mapa color→marca ({"rojo": "LOA", "celeste": "CIELO"}) |
-| assigned_linea_id | null | Línea asignada (null = modo espera) |
-
-### Modo Espera
-Si no hay `assigned_linea_id`, el counter arranca sin abrir cámara y sin contar. Espera a que un admin asigne una línea via config.
-
-### Endpoints HTTP
-
-| Método | Path | Descripción |
-|--------|------|-------------|
-| GET | `/health` | Estado del servicio |
-| GET | `/lab/stream` | MJPEG stream con bounding boxes dibujadas |
-| GET | `/lab/detections` | JSON con últimas detecciones |
-| POST | `/lab/line?y=0.5&direction=top_to_bottom` | Ajustar línea de conteo (preview, no persiste) |
-
----
-
-## 3. resiliencia (Go, :8002)
+## 2. resiliencia (Go, :8002)
 
 ### Propósito
 Buffer local en BD con tolerancia industrial a fallos. Garantiza que ningún evento de producción se pierda aunque el cloud esté caído por días.
@@ -313,7 +254,7 @@ internal/
 
 ---
 
-## 4. enviador (Go, :8003)
+## 3. enviador (Go, :8003)
 
 ### Propósito
 Sincroniza eventos del buffer local con el cloud. Gestiona 6 goroutines paralelas con retry exponencial y heartbeat.
@@ -380,7 +321,7 @@ Headers requeridos: `X-API-Key`, `X-Device-ID`, `X-Linea-ID`
 
 ---
 
-## 5. edge-gateway (Go, :8005)
+## 4. edge-gateway (Go, :8005)
 
 ### Propósito
 API REST unificada que actúa como **punto de entrada único**. Tablet y cloud **nunca** llaman a servicios internos directamente. Soporta múltiples líneas en un solo proceso.
@@ -552,7 +493,7 @@ Cada acción registra en `linea_{id}.audit_log`:
 
 ---
 
-## 6. edge-config-service (Go, :8004)
+## 5. edge-config-service (Go, :8004)
 
 ### Propósito
 Autoridad central para la configuración de líneas. Evita que servicios lean configs inconsistentes.
@@ -584,12 +525,11 @@ Una fila por `device_id` con campos JSONB:
 | roi | JSONB | {x, y, width, height, bottom_margin} |
 | thresholds | JSONB | {edge, color, flow, dy, beige, high, low} |
 | fsm | JSONB | {n_frames, cooldown, exit_frames, max_wait_exit_frames} |
-| mode | VARCHAR | textil \| botellas \| custom |
+| mode | VARCHAR | textil |
 | camera | JSONB | {url, frame_backend, frame_skip, signal_scale} |
 | oee | JSONB | {line_name, micro_stop_max_s, stop_max_s, snapshot_interval_s, vel_unit} |
 | cloud | JSONB | {sync_interval_s, cloud_url, cloud_api_key} |
 | tablet | JSONB | {config_url} |
-| yolo | JSONB | {model_name, confidence, use_tensorrt, counting_line_y, counting_direction, cap_colors, assigned_linea_id} |
 
 ### Endpoints
 
@@ -597,7 +537,7 @@ Una fila por `device_id` con campos JSONB:
 |--------|------|-------------|
 | GET | `/config?linea_id=X` | Config completa de línea |
 | PUT | `/config?linea_id=X` | Actualizar (parcial o completa) |
-| GET | `/config/system` | Defaults globales (cloud, OEE, yolo) |
+| GET | `/config/system` | Defaults globales (cloud, OEE) |
 | PUT | `/config/system` | Actualizar defaults |
 | GET | `/config/version?linea_id=X` | Solo el número de versión |
 | GET | `/config/lines` | Array de linea_id configuradas |
@@ -620,7 +560,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-Esto permite que detector y counter detecten cambios comparando solo un entero cada 5 segundos.
+Esto permite que el detector detecte cambios comparando solo un entero cada 5 segundos.
 
 ---
 
@@ -641,7 +581,6 @@ config.line_config (
     oee             JSONB,
     cloud           JSONB,
     tablet          JSONB,
-    yolo            JSONB,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
@@ -778,11 +717,6 @@ services:
           devices:
             - capabilities: [gpu]
 
-  yolo-counter:
-    build: ./services/yolo-counter
-    network_mode: host
-    runtime: nvidia
-
   resiliencia:
     build: ./services/resiliencia
     ports: ["8002:8002"]
@@ -822,7 +756,6 @@ services:
 |----------|---------|-----|-------------|
 | PostgreSQL | 512M | No | pg_isready |
 | vision-event-detector | 2G | Sí (NVIDIA) | Implícito |
-| yolo-counter | 2G | Sí (NVIDIA) | Implícito |
 | resiliencia | 128M | No | wget /health |
 | enviador | 128M | No | wget /health |
 | edge-config-service | 128M | No | — |
@@ -856,9 +789,9 @@ services:
 
 1. Operador en tablet → `PUT /edge/config` → config-service
 2. Trigger SQL incrementa `config_version`
-3. Detector/counter polling cada 5s: `GET /config/version`
+3. Detector polling cada 5s: `GET /config/version`
 4. Si version > local → `GET /config` completo → aplica en caliente
-5. Parámetros reconfigurables sin reiniciar: ROI, thresholds, FSM, modo, cámara, OEE interval, modelo YOLO
+5. Parámetros reconfigurables sin reiniciar: ROI, thresholds, FSM, cámara e intervalo OEE
 
 ### Calibración Asistida
 

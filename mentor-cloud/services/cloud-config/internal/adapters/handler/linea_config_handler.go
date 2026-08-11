@@ -13,12 +13,11 @@ import (
 )
 
 // validModes son los modos de operación válidos para una línea.
-var validModes = map[string]bool{"textil": true, "botellas": true}
+var validModes = map[string]bool{"textil": true}
 
 // modeVelUnit mapea mode → vel_unit string para responder en el API.
 var modeVelUnit = map[string]string{
-	"textil":   "uh",
-	"botellas": "us",
+	"textil": "uh",
 }
 
 // RegisterLineaConfigRoutes registra los endpoints de configuración de modo de línea.
@@ -38,7 +37,7 @@ func RegisterLineaConfigRoutes(r *gin.RouterGroup, db *pgxpool.Pool, mw *ports.J
 
 		var mode string
 		err = db.QueryRow(c.Request.Context(),
-			`SELECT COALESCE(mode, 'botellas') FROM config.lineas WHERE id = $1`, lineaID,
+			`SELECT COALESCE(mode, 'textil') FROM config.lineas WHERE id = $1`, lineaID,
 		).Scan(&mode)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "línea no encontrada"})
@@ -47,7 +46,7 @@ func RegisterLineaConfigRoutes(r *gin.RouterGroup, db *pgxpool.Pool, mw *ports.J
 
 		velUnit := modeVelUnit[mode]
 		if velUnit == "" {
-			velUnit = "us"
+			velUnit = "uh"
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"linea_id": lineaID,
@@ -67,7 +66,7 @@ func RegisterLineaConfigRoutes(r *gin.RouterGroup, db *pgxpool.Pool, mw *ports.J
 			return
 		}
 		if !validModes[body.Mode] {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "mode debe ser 'textil' o 'botellas'"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "mode debe ser 'textil'"})
 			return
 		}
 

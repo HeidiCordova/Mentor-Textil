@@ -165,6 +165,7 @@ export interface CategoryTreeNode {
 }
 
 export interface ProductEntry {
+  producto_id: number
   sku: string
   description: string
   active?: boolean

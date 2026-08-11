@@ -4,11 +4,11 @@ import Card from '@/shared/components/ui/Card.vue'
 import Button from '@/shared/components/ui/Button.vue'
 
 const companias = ref([
-  { id: 1, nombre: 'Industrias San Miguel' }
+  { id: 1, nombre: 'Art Atlas' }
 ])
 
 const plantas = ref([
-  { id: 1, companiaId: 1, nombre: 'ISM Arequipa' }
+  { id: 1, companiaId: 1, nombre: 'Planta Textil Lima' }
 ])
 
 const lineas = ref([

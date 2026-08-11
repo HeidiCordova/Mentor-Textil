@@ -78,8 +78,7 @@ const MENU_OPCIONES = [
   {
     grupo: 'Análisis Avanzado',
     items: [
-      { key: 'analisis-avanzado/generador-consultas', label: 'Generador de Consultas' },
-      { key: 'analisis-avanzado/kwhl', label: 'KWHL' }
+      { key: 'analisis-avanzado/generador-consultas', label: 'Generador de Consultas' }
     ]
   },
   {

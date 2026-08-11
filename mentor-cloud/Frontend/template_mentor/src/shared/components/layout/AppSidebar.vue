@@ -66,8 +66,7 @@ const menuItems = ref([
     label: 'Análisis',
     icon: 'chart',
     children: [
-      { id: 'generador-consultas', label: 'Generador de Consultas - R', path: '/analisis-avanzado/generador-consultas' },
-      { id: 'kwhl', label: 'KWHL', path: '/analisis-avanzado/kwhl', wip: true }
+      { id: 'generador-consultas', label: 'Generador de Consultas - R', path: '/analisis-avanzado/generador-consultas' }
     ]
   },
   {
@@ -185,10 +184,7 @@ function navigate(path, wip) {
   >
     <div class="sidebar-header">
       <div class="logos-container">
-        <img src="/mentor logo.png" alt="Mentor Monitor" class="logo-mentor">
-      </div>
-      <div class="logo-planta-container">
-        <img src="/ism log.png" alt="ISM" class="logo-planta">
+        <img src="/mentor logo.png" alt="Mentor Textil" class="logo-mentor">
       </div>
       <div class="user-info">
         <div class="user-avatar">

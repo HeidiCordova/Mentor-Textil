@@ -11,6 +11,7 @@ type CategoryTreeNode struct {
 }
 
 type ProductEntry struct {
+	ProductoID  int    `json:"producto_id"`
 	SKU         string `json:"sku"`
 	Description string `json:"description"`
 	Active      bool   `json:"active"`

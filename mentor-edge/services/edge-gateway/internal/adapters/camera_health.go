@@ -156,23 +156,6 @@ func checkCamera(ctx context.Context, rawURL string) CameraHealthResult {
 	return res
 }
 
-// yoloStreamAvailable hace un GET request con timeout corto para saber si
-// el stream upstream está disponible (detector /stream o yolo-counter).
-func yoloStreamAvailable(yoloURL string) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, yoloURL, nil)
-	if err != nil {
-		return false
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false
-	}
-	resp.Body.Close()
-	return resp.StatusCode < 500
-}
-
 // proxyMJPEGStream copia el stream MJPEG de src hacia w, pasando headers.
 func proxyMJPEGStream(w http.ResponseWriter, r *http.Request, srcURL string) {
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, srcURL, nil)
@@ -355,7 +338,7 @@ func EarlyCameraHealthHandler(w http.ResponseWriter, r *http.Request) {
 
 // EarlyCameraStreamHandler es un http.HandlerFunc standalone que puede ser
 // usado ANTES de que el gateway tenga líneas configuradas (ej: servidor pre-loop).
-// Intenta primero yolo-counter y si no está disponible usa ffmpeg directamente.
+// En esta fase usa ffmpeg directamente porque el detector aún no está inicializado.
 func EarlyCameraStreamHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
@@ -364,14 +347,6 @@ func EarlyCameraStreamHandler(w http.ResponseWriter, r *http.Request) {
 	cameraURL := r.URL.Query().Get("url")
 	if cameraURL == "" {
 		http.Error(w, `{"error":"url query param required"}`, http.StatusBadRequest)
-		return
-	}
-	yoloStreamURL := os.Getenv("YOLO_STREAM_URL")
-	if yoloStreamURL == "" {
-		yoloStreamURL = "http://host.docker.internal:8006/lab/stream"
-	}
-	if yoloStreamAvailable(yoloStreamURL) {
-		proxyMJPEGStream(w, r, yoloStreamURL)
 		return
 	}
 	ffmpegMJPEGStream(w, r, cameraURL)
@@ -394,16 +369,6 @@ func (s *HTTPServer) handleCameraStream(w http.ResponseWriter, r *http.Request) 
 	// Verificar disponibilidad con /frame (endpoint pequeño, no stream infinito).
 	if _, err := fetchDetectorFrame(r.Context(), detectorBase); err == nil {
 		proxyMJPEGStream(w, r, detectorStreamURL)
-		return
-	}
-
-	// Segundo: yolo-counter (solo botellas — puerto 8006).
-	yoloStreamURL := os.Getenv("YOLO_STREAM_URL")
-	if yoloStreamURL == "" {
-		yoloStreamURL = "http://host.docker.internal:8006/lab/stream"
-	}
-	if yoloStreamAvailable(yoloStreamURL) {
-		proxyMJPEGStream(w, r, yoloStreamURL)
 		return
 	}
 

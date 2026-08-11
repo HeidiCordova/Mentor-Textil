@@ -3,6 +3,7 @@ package adapters
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -18,6 +19,11 @@ type HTTPServer struct {
 	server      *http.Server
 }
 
+const (
+	visionCounterPeriod      = 5 * time.Minute
+	visionCounterSettleDelay = 10 * time.Second
+)
+
 func NewHTTPServer(services map[int]*application.BufferService, defaultLine int, port string) *HTTPServer {
 	h := &HTTPServer{services: services, defaultLine: defaultLine}
 
@@ -25,6 +31,8 @@ func NewHTTPServer(services map[int]*application.BufferService, defaultLine int,
 	mux.HandleFunc("/events", h.handleEvents)
 	mux.HandleFunc("/events/recent", h.handleRecentEvents)
 	mux.HandleFunc("/events/pending", h.handlePendingEvents)
+	mux.HandleFunc("/vision/count", h.handleVisionCount)
+	mux.HandleFunc("/vision/counter", h.handleVisionCounter)
 	mux.HandleFunc("/health", h.handleHealth)
 	mux.HandleFunc("/health/buffer", h.handleBufferHealth)
 	mux.HandleFunc("/health/stats", h.handleBufferStats)
@@ -62,6 +70,27 @@ func (h *HTTPServer) handleEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	lineID := h.defaultLine
+	service := h.services[lineID]
+	if raw := r.URL.Query().Get("linea_id"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 {
+			http.Error(w, "Invalid linea_id", http.StatusBadRequest)
+			return
+		}
+		var ok bool
+		service, ok = h.services[parsed]
+		if !ok {
+			http.Error(w, "Unknown linea_id", http.StatusNotFound)
+			return
+		}
+		lineID = parsed
+	}
+	if service == nil {
+		http.Error(w, "Line service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
 	var event struct {
 		EventID   string          `json:"event_id"`
 		DeviceID  string          `json:"device_id"`
@@ -89,7 +118,8 @@ func (h *HTTPServer) handleEvents(w http.ResponseWriter, r *http.Request) {
 		Payload:   []byte(event.Payload),
 	}
 
-	if err := h.serviceFor(r).StoreEvent(r.Context(), bufferEvent); err != nil {
+	if err := service.StoreEvent(r.Context(), bufferEvent); err != nil {
+		log.Printf("[resiliencia] StoreEvent linea_id=%d error: %v", lineID, err)
 		http.Error(w, "Failed to store event", http.StatusInternalServerError)
 		return
 	}
@@ -197,6 +227,149 @@ func (h *HTTPServer) handleRecentEvents(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(toEventDTOs(events))
+}
+
+func (h *HTTPServer) handleVisionCount(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	lineID := h.defaultLine
+	service := h.services[lineID]
+	if raw := r.URL.Query().Get("linea_id"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 {
+			http.Error(w, "Invalid linea_id", http.StatusBadRequest)
+			return
+		}
+		var ok bool
+		service, ok = h.services[parsed]
+		if !ok {
+			http.Error(w, "Unknown linea_id", http.StatusNotFound)
+			return
+		}
+		lineID = parsed
+	}
+	if service == nil {
+		http.Error(w, "Line service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	rawSince := r.URL.Query().Get("since")
+	if rawSince == "" {
+		http.Error(w, "Missing since; expected RFC3339 timestamp", http.StatusBadRequest)
+		return
+	}
+	since, err := time.Parse(time.RFC3339Nano, rawSince)
+	if err != nil {
+		http.Error(w, "Invalid since; expected RFC3339 timestamp", http.StatusBadRequest)
+		return
+	}
+	since = since.UTC()
+
+	rawUntil := r.URL.Query().Get("until")
+	if rawUntil == "" {
+		http.Error(w, "Missing until; expected RFC3339 timestamp", http.StatusBadRequest)
+		return
+	}
+	until, err := time.Parse(time.RFC3339Nano, rawUntil)
+	if err != nil {
+		http.Error(w, "Invalid until; expected RFC3339 timestamp", http.StatusBadRequest)
+		return
+	}
+	until = until.UTC()
+	if !until.After(since) {
+		http.Error(w, "Invalid range; until must be after since", http.StatusBadRequest)
+		return
+	}
+
+	result, err := service.GetVisionCount(r.Context(), since, until)
+	if err != nil {
+		log.Printf("[resiliencia] GetVisionCount linea_id=%d error: %v", lineID, err)
+		http.Error(w, "Failed to count vision detections", http.StatusInternalServerError)
+		return
+	}
+	result.LineaID = lineID
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *HTTPServer) handleVisionCounter(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	lineID := h.defaultLine
+	service := h.services[lineID]
+	if raw := r.URL.Query().Get("linea_id"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 {
+			http.Error(w, "Invalid linea_id", http.StatusBadRequest)
+			return
+		}
+		var ok bool
+		service, ok = h.services[parsed]
+		if !ok {
+			http.Error(w, "Unknown linea_id", http.StatusNotFound)
+			return
+		}
+		lineID = parsed
+	}
+	if service == nil {
+		http.Error(w, "Line service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	rawUntil := r.URL.Query().Get("until")
+	if rawUntil == "" {
+		http.Error(w, "Missing until; expected RFC3339 timestamp", http.StatusBadRequest)
+		return
+	}
+	until, err := time.Parse(time.RFC3339Nano, rawUntil)
+	if err != nil {
+		http.Error(w, "Invalid until; expected RFC3339 timestamp", http.StatusBadRequest)
+		return
+	}
+	until = until.UTC()
+	if until.Nanosecond() != 0 ||
+		until.Unix()%int64(visionCounterPeriod/time.Second) != 0 {
+		http.Error(
+			w,
+			"Invalid until; timestamp must be an exact five-minute boundary",
+			http.StatusBadRequest,
+		)
+		return
+	}
+	if time.Now().UTC().Before(until.Add(visionCounterSettleDelay)) {
+		http.Error(
+			w,
+			"Counter boundary is not ready; retry after the settle delay",
+			http.StatusTooEarly,
+		)
+		return
+	}
+
+	result, err := service.GetVisionCounter(r.Context(), until)
+	if err != nil {
+		if errors.Is(err, domain.ErrVisionCounterBoundary) {
+			http.Error(
+				w,
+				"Counter unavailable; boundary predates the epoch or a newer frozen sample",
+				http.StatusConflict,
+			)
+			return
+		}
+		log.Printf("[resiliencia] GetVisionCounter linea_id=%d error: %v", lineID, err)
+		http.Error(w, "Failed to read vision counter", http.StatusInternalServerError)
+		return
+	}
+	result.LineaID = lineID
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
 
 func (h *HTTPServer) handlePendingEvents(w http.ResponseWriter, r *http.Request) {

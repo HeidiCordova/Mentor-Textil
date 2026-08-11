@@ -168,7 +168,7 @@ Jerarquía organizacional con control de acceso basado en roles.
 Configuración del detector de visión y parámetros OEE.
 
 **Estado**:
-- `config.mode`: "textil" (120s micro, 1800s snapshot) | "botellas" (210s micro, 300s snapshot)
+- `config.mode`: "textil" (120s micro, 1800s snapshot)
 - `config.roi`: {x, y, width, height}
 - `config.thresholds`: {edge, color, flow, dy, beige, high, low}
 - `config.fsm`: {n_frames, cooldown, exit_frames, max_wait_exit_frames}
@@ -518,7 +518,6 @@ Lista completa de paradas con capacidad de justificación.
 **Modo de Operación**:
 ```
 [Textil]    → microparada: 120s, snapshot: 1800s
-[Botellas]  → microparada: 210s, snapshot: 300s
 ```
 
 **ROI (Región de Interés)**:

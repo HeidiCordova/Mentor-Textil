@@ -61,3 +61,8 @@ tmp/
 temp/
 .tmp/
 .env.raspberry-energy
+
+# Auditorías locales de Node-RED (pueden contener configuración sensible)
+/nodered-flows.audit.json
+/nodered-custom-nodes.audit/
+/nodered-custom-nodes.audit.tgz

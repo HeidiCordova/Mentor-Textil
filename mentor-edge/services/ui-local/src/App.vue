@@ -8,9 +8,9 @@
 
       <!-- Logo -->
       <div class="h-16 flex items-center gap-2.5 px-3.5 border-b border-slate-700 shrink-0 overflow-hidden">
-        <img src="/mentor-logo.png" alt="Mentor Monitor" class="h-8 w-8 object-contain shrink-0" />
+        <img src="/mentor-logo.png" alt="Mentor Textil" class="h-8 w-8 object-contain shrink-0" />
         <span v-if="sidebarOpen" class="text-base font-bold text-white whitespace-nowrap leading-tight">
-          Mentor<br><span class="text-blue-400">Monitor</span>
+          Mentor<br><span class="text-blue-400">Textil</span>
         </span>
       </div>
 

@@ -79,6 +79,8 @@ CREATE TABLE config.lineas (
     id         SERIAL PRIMARY KEY,
     nombre     VARCHAR(200) NOT NULL,
     planta_id  INT NOT NULL REFERENCES config.plantas(id) ON DELETE CASCADE,
+    mode       VARCHAR(20) NOT NULL DEFAULT 'textil'
+               CONSTRAINT lineas_mode_textil_check CHECK (mode = 'textil'),
     activo     BOOLEAN NOT NULL DEFAULT TRUE,
     creado_en  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -172,20 +174,20 @@ INSERT INTO identity.roles (nombre, descripcion) VALUES
 ON CONFLICT (nombre) DO NOTHING;
 
 INSERT INTO identity.empresas (nombre, ruc, direccion, email, responsable)
-VALUES ('Industrias San Miguel', '20456879901', 'Av. Industrial 123, Lima', 'admin@ism.pe', 'Admin ISM')
+VALUES ('Art Atlas', '20456879901', 'Av. Textil 123, Lima', 'admin@artatlas.pe', 'Admin Textil')
 ON CONFLICT (ruc) DO NOTHING;
 
 INSERT INTO config.plantas (nombre, empresa_id, lineas) VALUES
-    ('ISM Arequipa', 1, 3),
-    ('ISM Huachipa',  1, 2)
+    ('Planta Textil Lima',  1, 3),
+    ('Planta Textil Norte', 1, 2)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO config.lineas (nombre, planta_id) VALUES
-    ('Linea Soplado',   1),
-    ('Linea Llenado',   1),
-    ('Linea Etiquetado', 1),
-    ('Linea Envasado',  2),
-    ('Linea Paletizado', 2)
+    ('Linea Corte',    1),
+    ('Linea Costura',  1),
+    ('Linea Acabado',  1),
+    ('Linea Tenido',   2),
+    ('Linea Empaque',  2)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO config.turnos (nombre, hora_inicio, hora_fin, planta_id) VALUES
@@ -197,9 +199,9 @@ INSERT INTO config.turnos (nombre, hora_inicio, hora_fin, planta_id) VALUES
 ON CONFLICT DO NOTHING;
 
 INSERT INTO config.productos (codigo, nombre, empresa_id) VALUES
-    ('BEB-500', 'Agua San Miguel 500ml', 1),
-    ('BEB-1500', 'Agua San Miguel 1.5L', 1),
-    ('BEB-625', 'Cifrut 625ml', 1)
+    ('TEX-POLO',   'Polo de algodon', 1),
+    ('TEX-CAMISA', 'Camisa manga larga', 1),
+    ('TEX-PANT',   'Pantalon de drill', 1)
 ON CONFLICT (codigo) DO NOTHING;
 
 INSERT INTO identity.usuarios (username, email, nombre, password_hash, rol_id, empresa_id)
@@ -215,9 +217,9 @@ ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO identity.usuarios (username, email, nombre, password_hash, rol_id, empresa_id)
 VALUES (
-    'supervisor.aqp',
-    'supervisor@ism.pe',
-    'Supervisor Arequipa',
+    'supervisor.textil',
+    'supervisor@artatlas.pe',
+    'Supervisor Textil',
     crypt('Super1234!', gen_salt('bf', 12)),
     (SELECT id FROM identity.roles WHERE nombre = 'SUPERVISOR'),
     1

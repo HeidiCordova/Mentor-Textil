@@ -367,12 +367,12 @@ import { ref, computed, onMounted } from 'vue'
 
 // Datos maestros
 const companias = ref([
-  { id: 1, nombre: 'Industrias San Miguel' },
+  { id: 1, nombre: 'Art Atlas' },
   { id: 2, nombre: 'Industrial Tech' }
 ])
 
 const plantas = ref([
-  { id: 1, nombre: 'ISM Arequipa', companiaId: 1 },
+  { id: 1, nombre: 'Planta Textil Lima', companiaId: 1 },
   { id: 2, nombre: 'Planta Sur', companiaId: 1 },
   { id: 3, nombre: 'Planta Central', companiaId: 2 }
 ])

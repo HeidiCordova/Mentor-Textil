@@ -1,7 +1,7 @@
 const mockPlantsData = [
-  { id: 1, nombre: 'ISM Arequipa', compania: 'Industrias San Miguel', lineas: 5, activo: true },
-  { id: 2, nombre: 'Histórico Embotelladora San Miguel', compania: 'Industrias San Miguel', lineas: 8, activo: true },
-  { id: 3, nombre: 'PLC MODICON M221', compania: 'Industrias San Miguel', lineas: 3, activo: true }
+  { id: 1, nombre: 'Planta Textil Lima', compania: 'Art Atlas', lineas: 5, activo: true },
+  { id: 2, nombre: 'Histórico Planta Textil', compania: 'Mentor Textil', lineas: 8, activo: true },
+  { id: 3, nombre: 'PLC MODICON M221', compania: 'Art Atlas', lineas: 3, activo: true }
 ]
 
 export const mockPlants = {

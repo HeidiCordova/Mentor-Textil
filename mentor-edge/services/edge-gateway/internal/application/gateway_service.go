@@ -2,11 +2,13 @@ package application
 
 import (
 	"context"
-	"edge-gateway/internal/domain"
-	"edge-gateway/internal/ports"
 	"fmt"
 	"log"
+	"strings"
 	"time"
+
+	"edge-gateway/internal/domain"
+	"edge-gateway/internal/ports"
 )
 
 type GatewayService struct {
@@ -168,6 +170,74 @@ func (s *GatewayService) RecentEvents(ctx context.Context, limit int, since *tim
 		limit = 50
 	}
 	return s.buffer.GetRecentEvents(ctx, limit, since)
+}
+
+func (s *GatewayService) VisionCount(ctx context.Context, lineaID int) (*domain.VisionCount, error) {
+	if lineaID <= 0 {
+		return nil, fmt.Errorf("invalid linea_id: %d", lineaID)
+	}
+
+	asOf := time.Now().UTC()
+	result := &domain.VisionCount{
+		Status:    "no_active_run",
+		LineaID:   lineaID,
+		DeviceID:  s.deviceID,
+		AsOf:      asOf,
+		EventType: "CORTE",
+	}
+
+	run, err := s.productionRuns.FindActive(ctx, s.deviceID, lineaID, asOf)
+	if err != nil {
+		return nil, fmt.Errorf("resolve active production run: %w", err)
+	}
+	if run == nil {
+		return result, nil
+	}
+
+	startedAt := run.StartedAt.UTC()
+	result.RunID = run.RunID
+	result.ProductoID = run.ProductoID
+	result.SKU = run.SKU
+	result.StartedAt = &startedAt
+
+	hasProductID := run.ProductoID != nil && *run.ProductoID > 0
+	hasSKU := run.SKU != nil && strings.TrimSpace(*run.SKU) != ""
+	if !hasProductID && !hasSKU {
+		result.Status = "no_product"
+		return result, nil
+	}
+	if run.RunID == "" {
+		return nil, fmt.Errorf("active production run has empty run_id")
+	}
+
+	if !asOf.After(startedAt) {
+		count := int64(0)
+		result.Status = "active"
+		result.Count = &count
+		result.CounterEpoch = "run:" + run.RunID + ":v1"
+		return result, nil
+	}
+
+	window, err := s.buffer.GetVisionCount(ctx, lineaID, startedAt, asOf)
+	if err != nil {
+		return nil, fmt.Errorf("count active production run: %w", err)
+	}
+	if window.LineaID != lineaID {
+		return nil, fmt.Errorf(
+			"vision count line mismatch: requested %d, received %d",
+			lineaID,
+			window.LineaID,
+		)
+	}
+	if window.Count < 0 || window.EventType != "CORTE" {
+		return nil, fmt.Errorf("invalid vision count response")
+	}
+
+	count := window.Count
+	result.Status = "active"
+	result.Count = &count
+	result.CounterEpoch = "run:" + run.RunID + ":v1"
+	return result, nil
 }
 
 func (s *GatewayService) PendingEvents(ctx context.Context, limit int) ([]domain.Event, error) {
@@ -505,9 +575,7 @@ func (s *GatewayService) doMaintenance() {
 }
 
 func (s *GatewayService) UpsertProductionRun(ctx context.Context, req domain.UpsertProductionRunRequest, actor string) ([]domain.ProductionRun, error) {
-	if req.DeviceID == "" {
-		req.DeviceID = s.deviceID
-	}
+	req.DeviceID = s.deviceID
 	runs, err := s.productionRuns.Upsert(ctx, req)
 	if err != nil {
 		return nil, err

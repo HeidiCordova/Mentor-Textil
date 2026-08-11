@@ -70,6 +70,7 @@ func (s *SenderService) Run(ctx context.Context) {
 	go func() {
 		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
+		s.fetchAndApplyPendingCommands(ctx)
 		for {
 			select {
 			case <-ctx.Done():
@@ -121,7 +122,6 @@ func (s *SenderService) Run(ctx context.Context) {
 		}
 		s.refreshSyncInterval(ctx)
 		s.processBatch(ctx)
-		s.fetchAndApplyPendingCommands(ctx)
 
 		interval := time.Duration(s.syncPolicy.GetPollInterval()) * time.Second
 		select {

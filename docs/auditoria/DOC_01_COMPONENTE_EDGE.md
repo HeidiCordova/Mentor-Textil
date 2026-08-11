@@ -61,7 +61,7 @@ El componente Edge es el nucleo de procesamiento en tiempo real del sistema. Eje
 
 ## 3. Servicios Edge
 
-El Edge ejecuta **8 servicios** orquestados con Docker Compose:
+El Edge ejecuta **7 servicios y componentes** orquestados con Docker Compose:
 
 | Servicio | Puerto | Lenguaje | Responsabilidad |
 |---|---|---|---|
@@ -70,7 +70,6 @@ El Edge ejecuta **8 servicios** orquestados con Docker Compose:
 | enviador | 8003 | Go | Sincronizacion con cloud, retry exponencial, 6 goroutines paralelas |
 | edge-config-service | 8004 | Go | CRUD de configuracion por linea, auto-versionamiento |
 | edge-gateway | 8005 | Go | API REST unificada, SSE broker, proxy a servicios internos |
-| yolo-counter | 8006 | Python | Conteo por YOLO v8 + TensorRT, correlacion de marca |
 | ui-local | 8080 | Vue.js / Nginx | Interfaz web local para diagnostico y configuracion |
 | PostgreSQL | 5432 | PostgreSQL 14 | Base de datos local con schemas `config` + `linea_{id}` |
 
@@ -176,19 +175,12 @@ flowchart TD
 
 ### 4.4 Motor de Fusion — FusionEngine
 
-Las 4 senales se fusionan en un score escalar `[0.0, 1.0]` mediante promedio ponderado. Los pesos cambian segun el modo de operacion configurado en `line_config.mode`:
+Las 4 senales se fusionan en un score escalar `[0.0, 1.0]` mediante promedio ponderado para la operacion textil:
 
 ```python
 _TEXTIL_WEIGHTS = {
     'edge':  0.25,
     'color': 0.30,
-    'flow':  0.35,
-    'beige': 0.10,
-}
-
-_DEFAULT_WEIGHTS = {   # modo: botellas
-    'edge':  0.30,
-    'color': 0.25,
     'flow':  0.35,
     'beige': 0.10,
 }

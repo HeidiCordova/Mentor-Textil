@@ -10,7 +10,7 @@
       <div class="filtros-container">
         <select v-model="filtros.compania" class="form-control">
           <option value="">Todas las Compañías</option>
-          <option value="1">Industrias San Miguel</option>
+          <option value="1">Art Atlas</option>
           <option value="2">Indagua</option>
           <option value="3">Demo</option>
           <option value="4">Agrícola Cerro Prieto</option>
@@ -18,8 +18,8 @@
 
         <select v-model="filtros.planta" class="form-control">
           <option value="">Todas las Plantas</option>
-          <option value="1">ISM Arequipa</option>
-          <option value="2">ISM Lima</option>
+          <option value="1">Planta Textil Lima</option>
+          <option value="2">Planta Textil Norte</option>
           <option value="3">Indagua Principal</option>
           <option value="4">ACP Ica</option>
         </select>
@@ -224,7 +224,7 @@
                 <label>Compañía</label>
                 <select v-model="nuevoCompromiso.compania" class="form-control">
                   <option value="">Seleccionar...</option>
-                  <option value="1">Industrias San Miguel</option>
+                  <option value="1">Art Atlas</option>
                   <option value="2">Indagua</option>
                   <option value="3">Demo</option>
                   <option value="4">Agrícola Cerro Prieto</option>
@@ -235,8 +235,8 @@
                 <label>Planta</label>
                 <select v-model="nuevoCompromiso.planta" class="form-control">
                   <option value="">Seleccionar...</option>
-                  <option value="1">ISM Arequipa</option>
-                  <option value="2">ISM Lima</option>
+                  <option value="1">Planta Textil Lima</option>
+                  <option value="2">Planta Textil Norte</option>
                   <option value="3">Indagua Principal</option>
                   <option value="4">ACP Ica</option>
                 </select>
@@ -321,7 +321,7 @@ const compromisos = ref([
   {
     id: 1,
     titulo: 'OEE Mayor a 85%',
-    planta: 'ISM Arequipa',
+    planta: 'Planta Textil Lima',
     linea: 'Línea 01',
     objetivo: '85%',
     actual: '87%',
@@ -335,7 +335,7 @@ const compromisos = ref([
   {
     id: 2,
     titulo: 'Producción 500,000 unidades',
-    planta: 'ISM Lima',
+    planta: 'Planta Textil Norte',
     linea: 'Línea 03',
     objetivo: '500,000',
     actual: '425,000',
@@ -363,7 +363,7 @@ const compromisos = ref([
   {
     id: 4,
     titulo: 'Disponibilidad > 90%',
-    planta: 'ISM Arequipa',
+    planta: 'Planta Textil Lima',
     linea: 'Línea 02',
     objetivo: '90%',
     actual: '92%',
@@ -391,7 +391,7 @@ const compromisos = ref([
   {
     id: 6,
     titulo: 'Reducir Paradas a < 30 min',
-    planta: 'ISM Lima',
+    planta: 'Planta Textil Norte',
     linea: 'Línea 04',
     objetivo: '< 30 min',
     actual: '45 min',

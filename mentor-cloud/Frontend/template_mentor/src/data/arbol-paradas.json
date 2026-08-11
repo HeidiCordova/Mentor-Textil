@@ -13,47 +13,47 @@
             "nombre": "CAMBIO DE FORMATO",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
+            "categoriaParada": "LIMPIEZAS",
             "descripcionParada": "",
             "maquina": "",
             "parteMaquina": ""
           },
           {
             "id": 3,
-            "nombre": "CAMBIO DE PREFORMA",
+            "nombre": "CAMBIO DE MOLDE",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
+            "categoriaParada": "LIMPIEZAS",
             "descripcionParada": "",
             "maquina": "",
             "parteMaquina": ""
           },
           {
             "id": 4,
-            "nombre": "CAMBIO DE SABOR REFRESCOS (ENJUAGUE)",
+            "nombre": "CAMBIO DE COLOR O TELA",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
-            "descripcionParada": "CAMBIO DE SABOR (ENJUAGUE)",
+            "categoriaParada": "LIMPIEZAS",
+            "descripcionParada": "CAMBIO DE COLOR O TELA",
             "maquina": "",
             "parteMaquina": ""
           },
           {
             "id": 5,
-            "nombre": "ENJUAGUE CON AGUA CALIENTE",
+            "nombre": "LIMPIEZA DE MAQUINA",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
+            "categoriaParada": "LIMPIEZAS",
             "descripcionParada": "",
             "maquina": "",
             "parteMaquina": ""
           },
           {
             "id": 6,
-            "nombre": "CAMBIO DE FORMATO (SANEAMIENTO 3 PASOS)",
+            "nombre": "CAMBIO DE FORMATO Y LIMPIEZA",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
+            "categoriaParada": "LIMPIEZAS",
             "descripcionParada": "",
             "maquina": "",
             "parteMaquina": ""
@@ -62,75 +62,75 @@
       },
       {
         "id": 7,
-        "nombre": "SANEAMIENTOS",
+        "nombre": "LIMPIEZAS",
         "nivel": 1,
         "subcategorias": [
           {
             "id": 8,
-            "nombre": "SANEAMIENTO 5 PASOS",
+            "nombre": "LIMPIEZA PROFUNDA DE LINEA",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
+            "categoriaParada": "LIMPIEZAS",
             "descripcionParada": "",
             "maquina": "",
             "parteMaquina": ""
           },
           {
             "id": 9,
-            "nombre": "SANEAMIENTO CIP SALA DE JARABE",
+            "nombre": "LIMPIEZA DE AREA DE TINTORERIA",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
+            "categoriaParada": "LIMPIEZAS",
             "descripcionParada": "",
             "maquina": "",
             "parteMaquina": ""
           },
           {
             "id": 10,
-            "nombre": "SANEAMIENTO DE LÍNEA DE AGUA TRATADA",
+            "nombre": "LIMPIEZA DE LINEA DE PROCESO",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
+            "categoriaParada": "LIMPIEZAS",
             "descripcionParada": "CAMBIO DE SELLOS",
             "maquina": "",
             "parteMaquina": ""
           },
           {
             "id": 11,
-            "nombre": "SANEAMIENTO 3 PASOS (LLENADORA - TERMINO DE SEMANA)",
+            "nombre": "LIMPIEZA PROGRAMADA DE LINEA",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
+            "categoriaParada": "LIMPIEZAS",
             "descripcionParada": "",
             "maquina": "",
             "parteMaquina": ""
           },
           {
             "id": 12,
-            "nombre": "SANEAMIENTO CON AGUA CALIENTE (LLENADORA - PASTEURIZADOR)",
+            "nombre": "LIMPIEZA DE TINAS Y RODILLOS",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
+            "categoriaParada": "LIMPIEZAS",
             "descripcionParada": "",
             "maquina": "",
             "parteMaquina": ""
           },
           {
             "id": 13,
-            "nombre": "SANEAMIENTO EXTERNO DE MAQUINA",
+            "nombre": "LIMPIEZA EXTERNA DE MAQUINA",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
+            "categoriaParada": "LIMPIEZAS",
             "descripcionParada": "",
             "maquina": "",
             "parteMaquina": ""
           },
           {
             "id": 14,
-            "nombre": "SANEMIENTO CON VAPOR A FILTROS DE LA PATP",
+            "nombre": "LIMPIEZA DE FILTROS DE VENTILACION",
             "nivel": 2,
             "categoriaGeneral": "parada programada",
-            "categoriaParada": "SANEAMIENTOS",
+            "categoriaParada": "LIMPIEZAS",
             "descripcionParada": "",
             "maquina": "",
             "parteMaquina": ""
@@ -264,7 +264,7 @@
         "subcategorias": [
           {
             "id": 2,
-            "nombre": "AJUSTE SOPLADORA",
+            "nombre": "AJUSTE CORTADORA",
             "nivel": 2,
             "categoriaGeneral": "parada no programada",
             "categoriaParada": "CAMBIOS",
@@ -274,7 +274,7 @@
           },
           {
             "id": 3,
-            "nombre": "AJUSTE TRANS. NEUMÁTICO",
+            "nombre": "AJUSTE TRANSPORTE DE TELA",
             "nivel": 2,
             "categoriaGeneral": "parada no programada",
             "categoriaParada": "CAMBIOS",
@@ -284,7 +284,7 @@
           },
           {
             "id": 4,
-            "nombre": "AJUSTE ETIQUETADORA",
+            "nombre": "AJUSTE MAQUINA DE COSTURA",
             "nivel": 2,
             "categoriaGeneral": "parada no programada",
             "categoriaParada": "CAMBIOS",
@@ -294,7 +294,7 @@
           },
           {
             "id": 5,
-            "nombre": "AJUSTE RINSER",
+            "nombre": "AJUSTE OVERLOCK",
             "nivel": 2,
             "categoriaGeneral": "parada no programada",
             "categoriaParada": "CAMBIOS",
@@ -304,7 +304,7 @@
           },
           {
             "id": 6,
-            "nombre": "LLENADORA MESAL ISOBARICA",
+            "nombre": "AJUSTE REMALLADORA",
             "nivel": 2,
             "categoriaGeneral": "parada no programada",
             "categoriaParada": "CAMBIOS",
@@ -314,7 +314,7 @@
           },
           {
             "id": 7,
-            "nombre": "AJUSTE TOLVA DE TAPAS",
+            "nombre": "AJUSTE ALIMENTADOR DE TELA",
             "nivel": 2,
             "categoriaGeneral": "parada no programada",
             "categoriaParada": "CAMBIOS",
@@ -324,7 +324,7 @@
           },
           {
             "id": 8,
-            "nombre": "AJUSTE CODIFICADOR",
+            "nombre": "AJUSTE MARCADORA",
             "nivel": 2,
             "categoriaGeneral": "parada no programada",
             "categoriaParada": "CAMBIOS",

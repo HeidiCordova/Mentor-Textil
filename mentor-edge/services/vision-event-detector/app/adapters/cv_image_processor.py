@@ -32,14 +32,16 @@ class CVImageProcessor(ImageProcessor):
     Los 4 signals reciben el mismo roi_frame por tick. Sin caché se harían:
       - cvtColor(BGR2GRAY) x2 (EdgeSignal + FlowSignal)
       - cvtColor(BGR2HSV)  x2 (HistogramSignal + BeigeSignal)
-    Con caché por id(frame) cada conversión ocurre exactamente 1 vez por frame.
+    Cada caché conserva una referencia fuerte al frame para comparar su
+    identidad sin depender de id(frame), que Python puede reutilizar.
     """
 
     def __init__(self) -> None:
-        # Caché de conversiones: clave = id(roi_frame) del frame actual
-        self._gray_cache_id: int = -1
+        # La referencia fuerte evita que otro ndarray reutilice la identidad
+        # del frame cacheado mientras su conversión siga vigente.
+        self._gray_cache_frame: np.ndarray | None = None
         self._gray_cache: np.ndarray | None = None
-        self._hsv_cache_id: int = -1
+        self._hsv_cache_frame: np.ndarray | None = None
         self._hsv_cache: np.ndarray | None = None
         # Arrays pre-asignados para beige_ratio (evita np.array() por frame)
         self._beige_lo = np.array([15, 30, 120], dtype=np.uint8)
@@ -51,17 +53,15 @@ class CVImageProcessor(ImageProcessor):
         self._beige_hi = np.array([h_max, s_max, 255],   dtype=np.uint8)
 
     def to_grayscale(self, frame: np.ndarray) -> np.ndarray:
-        fid = id(frame)
-        if self._gray_cache_id != fid:
-            self._gray_cache_id = fid
+        if self._gray_cache_frame is not frame:
             self._gray_cache = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            self._gray_cache_frame = frame
         return self._gray_cache
 
     def to_hsv(self, frame: np.ndarray) -> np.ndarray:
-        fid = id(frame)
-        if self._hsv_cache_id != fid:
-            self._hsv_cache_id = fid
+        if self._hsv_cache_frame is not frame:
             self._hsv_cache = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            self._hsv_cache_frame = frame
         return self._hsv_cache
 
     def detect_edges(self, gray: np.ndarray, low: int, high: int) -> np.ndarray:

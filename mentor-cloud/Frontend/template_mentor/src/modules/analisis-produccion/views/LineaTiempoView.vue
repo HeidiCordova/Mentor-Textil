@@ -342,7 +342,7 @@ import { ref, computed, onMounted } from 'vue'
 
 // Datos maestros
 const companias = ref([
-  { id: 1, nombre: 'Mentor Monitor S.A.' },
+  { id: 1, nombre: 'Mentor Textil S.A.' },
   { id: 2, nombre: 'Industrial Tech' }
 ])
 
@@ -417,13 +417,13 @@ const anchoTimeline = ref(1200)
 
 // Filtros de estados
 const filtrosDisponibles = ref([
-  { id: 1, nombre: '360', color: '#3b82f6' },
-  { id: 2, nombre: '350 ML', color: '#8b5cf6' },
-  { id: 3, nombre: 'nacional', color: '#f97316' },
-  { id: 4, nombre: '625 ml', color: '#78716c' },
-  { id: 5, nombre: 'kola real', color: '#22c55e' },
-  { id: 6, nombre: '300 ml', color: '#ec4899' },
-  { id: 7, nombre: 'cielo', color: '#ef4444' }
+  { id: 1, nombre: 'Algodon', color: '#3b82f6' },
+  { id: 2, nombre: 'Poliester', color: '#8b5cf6' },
+  { id: 3, nombre: 'Nacional', color: '#f97316' },
+  { id: 4, nombre: 'Talla S', color: '#78716c' },
+  { id: 5, nombre: 'Talla M', color: '#22c55e' },
+  { id: 6, nombre: 'Talla L', color: '#ec4899' },
+  { id: 7, nombre: 'Exportacion', color: '#ef4444' }
 ])
 const filtrosActivos = ref([])
 
@@ -553,13 +553,13 @@ function generarDatosTimeline() {
 
     // Estados/valores posibles según el tipo de variable
     const valoresPosibles = [
-      { etiqueta: '360', color: '#3b82f6' },
-      { etiqueta: '350 ML', color: '#8b5cf6' },
-      { etiqueta: 'nacional', color: '#f97316' },
-      { etiqueta: '625 ml', color: '#78716c' },
-      { etiqueta: 'kola real', color: '#22c55e' },
-      { etiqueta: '300 ml', color: '#ec4899' },
-      { etiqueta: 'cielo', color: '#ef4444' }
+      { etiqueta: 'Algodon', color: '#3b82f6' },
+      { etiqueta: 'Poliester', color: '#8b5cf6' },
+      { etiqueta: 'Nacional', color: '#f97316' },
+      { etiqueta: 'Talla S', color: '#78716c' },
+      { etiqueta: 'Talla M', color: '#22c55e' },
+      { etiqueta: 'Talla L', color: '#ec4899' },
+      { etiqueta: 'Exportacion', color: '#ef4444' }
     ]
 
     // Generar eventos para esta variable

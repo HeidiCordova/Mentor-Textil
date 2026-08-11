@@ -5,7 +5,13 @@ import { usePlantasLineasStore } from '@/stores/plantasLineas'
 
 const props = defineProps<{ timeStart: number; timeEnd: number }>()
 const emit = defineEmits<{
-  assign: [sku: string | null, description: string | null, startMs: number, endMs: number]
+  assign: [
+    productoId: number | null,
+    sku: string | null,
+    description: string | null,
+    startMs: number,
+    endMs: number
+  ]
   cancel: []
 }>()
 
@@ -71,11 +77,20 @@ function toggleSinProgramacion(): void {
 function accept(): void {
   if (!canAccept.value) return
   if (sinProgramacion.value) {
-    emit('assign', null, null, startMs.value, openEnd.value ? 0 : endMs.value)
+    emit('assign', null, null, null, startMs.value, openEnd.value ? 0 : endMs.value)
     return
   }
   const p = catalog.products.find((x) => x.sku === selectedSku.value)
-  if (p) emit('assign', p.sku, p.description, startMs.value, openEnd.value ? 0 : endMs.value)
+  if (p) {
+    emit(
+      'assign',
+      p.producto_id,
+      p.sku,
+      p.description,
+      startMs.value,
+      openEnd.value ? 0 : endMs.value
+    )
+  }
 }
 </script>
 

@@ -196,12 +196,6 @@ const router = createRouter({
               name: 'GeneradorConsultas',
               component: () => import('@/modules/analisis-avanzado/views/GeneradorConsultasView.vue'),
               meta: { title: 'Generador de Consultas - R' }
-            },
-            {
-              path: 'kwhl',
-              name: 'Kwhl',
-              component: () => import('@/modules/analisis-avanzado/views/KwhlView.vue'),
-              meta: { title: 'KWHL' }
             }
           ]
         },

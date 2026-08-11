@@ -164,6 +164,55 @@ class CalibratorTests(unittest.TestCase):
 
 
 class DetectorCalibrationLifecycleTests(unittest.TestCase):
+    def test_legacy_fsm_config_maps_to_effective_textile_contract(self):
+        detector = _make_detector(_FakeRepository(return_stored=False))
+
+        detector._apply_config({
+            'fsm': {
+                'n_frames': 12,
+                'exit_frames': 9,
+                'cooldown': 30,
+                'min_rearm_s': 6,
+            },
+        })
+
+        self.assertEqual(detector.fsm.config.beige_confirm_frames, 12)
+        self.assertEqual(detector.fsm.config.beige_exit_frames, 9)
+        self.assertEqual(detector.fsm.config.rearm_beige_frames, 30)
+        self.assertEqual(detector.fsm.config.min_rearm_s, 300.0)
+
+    def test_unsafe_legacy_defaults_are_clamped_for_textile_pilot(self):
+        detector = _make_detector(_FakeRepository(return_stored=False))
+
+        detector._apply_config({
+            'fsm': {
+                'n_frames': 3,
+                'exit_frames': 5,
+                'cooldown': 8,
+                'min_rearm_s': 6,
+            },
+        })
+
+        self.assertEqual(detector.fsm.config.beige_confirm_frames, 10)
+        self.assertEqual(detector.fsm.config.beige_exit_frames, 8)
+        self.assertEqual(detector.fsm.config.rearm_beige_frames, 25)
+        self.assertEqual(detector.fsm.config.min_garment_s, 30.0)
+        self.assertEqual(detector.fsm.config.min_rearm_s, 300.0)
+
+    def test_invalid_fsm_update_keeps_last_effective_config(self):
+        detector = _make_detector(_FakeRepository(return_stored=False))
+        previous = detector.fsm.config
+
+        with self.assertRaises(ValueError):
+            detector._apply_config({
+                'fsm': {
+                    'beige_low': 0.8,
+                    'beige_high': 0.2,
+                },
+            })
+
+        self.assertIs(detector.fsm.config, previous)
+
     def test_compatible_persisted_reference_is_loaded_for_same_line(self):
         repository = _FakeRepository(return_stored=True)
         detector = _make_detector(repository)

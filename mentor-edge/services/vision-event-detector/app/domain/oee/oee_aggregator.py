@@ -22,9 +22,9 @@ class OEEAggregator:
 
     def __init__(
         self,
-        snapshot_interval_s: float = 300.0,
-        micro_stop_max_s: float = 120.0,  # textil default; botellas usa 210.0
-        stop_max_s: float = 1800.0,
+        snapshot_interval_s: float = 1800.0,
+        micro_stop_max_s: float = 120.0,
+        stop_max_s: float = 86400.0,
     ) -> None:
         self._snapshot_interval = snapshot_interval_s
         self._micro_stop_max_s: float = micro_stop_max_s
@@ -92,7 +92,7 @@ class OEEAggregator:
     def _next_boundary(self, wall_now: float) -> float:
         interval = int(self._snapshot_interval)
         if interval <= 0:
-            interval = 300
+            interval = 1800
         remainder = int(wall_now) % interval
         return wall_now + (interval - remainder)
 

@@ -9,11 +9,11 @@ const { loading, error, execute } = useApi()
 const tabActiva = ref('FACTOR DE CALIFICACIÓN')
 
 const empresas = ref([
-  { id: 1, nombre: 'Industrias San Miguel' }
+  { id: 1, nombre: 'Art Atlas' }
 ])
 
 const plantas = ref([
-  { id: 1, empresaId: 1, nombre: 'ISM Arequipa' }
+  { id: 1, empresaId: 1, nombre: 'Planta Textil Lima' }
 ])
 
 const empresaSeleccionada = ref(1)

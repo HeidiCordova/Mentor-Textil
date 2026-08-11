@@ -2,46 +2,48 @@
 
 ## 3.1 Antecedentes del Proyecto
 
-El sistema MENTOR EDGE fue desarrollado inicialmente como proyecto piloto en colaboración con **ISM (Industrias San Miguel)**, empresa del sector de bebidas en Arequipa, Perú. El objetivo era validar la viabilidad de usar visión artificial como alternativa a sensores mecánicos para el conteo de producción y detección de paradas en líneas industriales.
+El sistema MENTOR EDGE se desarrolla para **Art Atlas S.A.**, empresa del sector
+textil. Su objetivo es usar visión artificial para registrar producción, detectar
+paradas y calcular OEE en líneas de confección sin depender del registro manual.
 
 ---
 
-## 3.2 Piloto en ISM Arequipa
+## 3.2 Implementación textil en Art Atlas
 
 ### Contexto
-- **Empresa:** Industrias San Miguel (ISM)
-- **Ubicación:** Planta Arequipa
-- **Línea piloto:** Línea de embotellado de bebidas gaseosas
-- **Periodo:** Fase inicial de desarrollo y validación
+- **Empresa:** Art Atlas S.A.
+- **Sector:** Industria textil
+- **Líneas monitoreadas:** 4 líneas de producción
+- **Periodo:** Implementación actual y validación continua
 
 ### Problema identificado
-- El conteo de producción se realizaba con sensores mecánicos sujetos a desgaste y fallos
+- El conteo y seguimiento de producción requerían registros manuales
 - Las paradas de línea se registraban manualmente con demoras y errores
 - No existía visibilidad en tiempo real del OEE (Eficiencia General de los Equipos)
 - La falta de datos precisos impedía la mejora continua
 
 ### Solución implementada
-Se instaló un prototipo del sistema MENTOR con:
-- **1 cámara IP** apuntando a la línea de producción
-- **1 dispositivo Jetson** procesando video en tiempo real
-- **Software de detección** calibrado para detectar el paso de botellas
-- **Dashboard local** para monitoreo en planta
+Se desplegó el sistema MENTOR con:
+- **Cámaras IP** apuntando a las líneas textiles
+- **1 dispositivo Jetson Orin** procesando video en tiempo real
+- **Software de detección** calibrado para prendas y ciclos textiles
+- **Dashboard local y cloud** para monitoreo de producción y OEE
 
-### Resultados del piloto
+### Resultados de la implementación
 
 | Métrica | Resultado |
 |---------|-----------|
-| Precisión de conteo | > 95% en condiciones normales de operación |
+| Precisión de detección | Pendiente de consolidar con medición de campo |
 | Detección de paradas | Tiempo real (< 1 segundo de latencia) |
-| Disponibilidad del sistema | 24/7 sin intervención manual |
-| Costo de hardware | Significativamente menor que sensores mecánicos equivalentes |
+| Operación | Continua, con recuperación automática de servicios |
+| Líneas monitoreadas | 4 líneas textiles |
 | Mantenimiento | Mínimo (solo limpieza periódica de cámara) |
 
-### Lecciones aprendidas en ISM
+### Lecciones aprendidas en la operación textil
 
 1. **Iluminación:** Las variaciones de iluminación afectan la detección. Se implementó normalización de histograma y calibración automática.
 2. **Vibración:** El movimiento de la estructura de la línea puede causar falsos positivos. Se añadió anti-rebote (cooldown en FSM).
-3. **Multi-producto:** Diferentes productos requieren diferentes umbrales. Se desarrolló el sistema de calibración por producto.
+3. **Multi-producto:** Diferentes prendas requieren diferentes umbrales. Se desarrolló el sistema de calibración por producto.
 4. **Conectividad:** La red de planta es inestable. Se priorizó la arquitectura offline-first.
 
 ---
@@ -50,7 +52,7 @@ Se instaló un prototipo del sistema MENTOR con:
 
 ### 3.3.1 Rendimiento del Algoritmo de Detección
 
-El piloto permitió validar la fusión multi-modal de señales:
+La implementación permitió validar la fusión multi-modal de señales:
 
 | Señal | Eficacia en condiciones normales | Eficacia con cambios de luz | Observaciones |
 |-------|----------------------------------|----------------------------|---------------|
@@ -84,7 +86,7 @@ El piloto permitió validar la fusión multi-modal de señales:
 
 ## 3.4 Evolución del Sistema
 
-### Versión 1 (ISM)
+### Versión 1
 - Detección en una sola línea
 - Dashboard básico
 - Sincronización simple (sin multi-tenant)
@@ -127,9 +129,8 @@ El piloto permitió validar la fusión multi-modal de señales:
 
 | Aspecto | Detalle |
 |---------|---------|
-| **Cliente piloto** | Industrias San Miguel (ISM) — Planta Arequipa |
-| **Cliente actual** | Art Atlas S.A. — Planta textil |
-| **Sector** | Industria manufacturera (bebidas, textil) |
+| **Cliente** | Art Atlas S.A. |
+| **Sector** | Industria textil |
 | **Líneas monitoreadas** | 4 líneas de producción (Art Atlas) |
 | **Tiempo en operación** | [COMPLETAR: meses en producción] |
-| **Contacto de referencia** | [COMPLETAR: nombre y cargo en ISM / Art Atlas] |
+| **Contacto de referencia** | [COMPLETAR: nombre y cargo en Art Atlas] |

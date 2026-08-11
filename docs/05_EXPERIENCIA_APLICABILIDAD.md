@@ -38,13 +38,9 @@ Art Atlas — Planta 14
 
 ### Productos configurados en producción
 
-| ID | Código | Producto | Estado |
-|----|--------|----------|--------|
-| 1 | 1232 | Kir Gaseosa | Activo |
-| 2 | 12312 | Cocacola | Activo |
-| 3 | 32432432 | Inkakola | Activo |
-| 4 | 111111 | Pepsi | Activo |
-| 5 | 222 | Chilcano | Activo |
+Los códigos y descripciones de las prendas se administran desde los catálogos de
+producción. La lista vigente debe consultarse en el sistema para evitar documentar
+datos operativos desactualizados.
 
 ---
 
@@ -140,7 +136,6 @@ El sistema MENTOR EDGE está diseñado con **modos de operación configurables**
 | Sector | Aplicación | Estado |
 |--------|-----------|--------|
 | **Textil** | Detección de paso de tela/prenda en línea | ✅ En producción (Art Atlas) |
-| **Bebidas** | Conteo de botellas/envases en línea | ✅ Piloto validado (ISM) |
 
 ### 5.4.2 Sectores aplicables (pendientes de validación)
 
@@ -184,7 +179,7 @@ Para aplicar el sistema en un nuevo sector se requiere:
 
 ## 5.6 Testimonios y Evidencia
 
-> **NOTA:** Completar con testimonios reales del personal de Art Atlas e ISM.
+> **NOTA:** Completar con testimonios reales del personal de Art Atlas.
 
 ### Testimonio sugerido 1 — Jefe de planta
 ```
@@ -200,12 +195,4 @@ del sistema en la productividad y visibilidad de la producción]"
 para la toma de decisiones]"
 
 — [Nombre], Gerente de Operaciones, Art Atlas S.A.
-```
-
-### Testimonio sugerido 3 — Referencia ISM
-```
-"[COMPLETAR: Testimonio del piloto en ISM sobre la
-validación técnica del sistema]"
-
-— [Nombre], [Cargo], Industrias San Miguel
 ```

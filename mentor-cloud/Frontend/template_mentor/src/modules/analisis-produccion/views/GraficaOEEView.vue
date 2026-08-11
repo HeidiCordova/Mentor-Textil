@@ -347,10 +347,14 @@ const lineaId = ref(null)
 const tipoGrafica = ref('barras')
 const tipoConsulta = ref('consulta')
 
-const lineaMode = computed(() => lineas.value.find(l => l.id === lineaId.value)?.mode ?? 'botellas')
-const intervalConfig = computed(() => lineaMode.value === 'textil'
-  ? { msStep: 1800000, sliderMax: 1, minuteMultiplier: 30, divisor: 30, minIntervalS: 1800 }
-  : { msStep: 300000,  sliderMax: 11, minuteMultiplier: 5,  divisor: 5,  minIntervalS: 300  })
+const lineaMode = computed(() => lineas.value.find(l => l.id === lineaId.value)?.mode ?? 'textil')
+const intervalConfig = computed(() => ({
+  msStep: 1800000,
+  sliderMax: 1,
+  minuteMultiplier: 30,
+  divisor: 30,
+  minIntervalS: 1800
+}))
 
 const pad2 = n => String(n).padStart(2, '0')
 
@@ -419,14 +423,12 @@ const snapshotsPagina = computed(() => {
   return snapshots.value.slice(inicio, inicio + POR_PAGINA)
 })
 
-const VARS_EXCLUIDAS = new Set(['CONTEO_2'])
-
 const columnasVariables = computed(() => {
   const seen = new Set()
   const cols = []
   snapshots.value.forEach(s => {
     (s.head || []).forEach(k => {
-      if (!seen.has(k) && !VARS_EXCLUIDAS.has(k)) { seen.add(k); cols.push(k) }
+      if (!seen.has(k)) { seen.add(k); cols.push(k) }
     })
   })
   return cols
@@ -895,7 +897,7 @@ function exportTurnoAcumulativo(fecha) {
 
 function exportTurnoVariablesBase(fecha) {
   const primer = snapshots.value.find(s => s.head?.length > 0)
-  const head = (primer?.head || []).filter(k => !VARS_EXCLUIDAS.has(k))
+  const head = primer?.head || []
   const hdrs = ['Turno', 'Fecha/Hora', 'OEE (%)', 'Disponibilidad (%)', 'Rendimiento (%)', 'Calidad (%)', 'Produccion', ...head]
   let xml = xmlHead('Turno Variables Base')
   xml += xmlRow(hdrs.map(v => ({ v, style: 'h' })))

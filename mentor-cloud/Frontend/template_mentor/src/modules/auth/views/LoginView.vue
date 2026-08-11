@@ -117,7 +117,7 @@ async function handleSubmit() {
       
       <div class="content-overlay">
         <div class="logo-section">
-          <img src="/mentor logo.png" alt="Mentor Monitor" class="brand-logo">
+          <img src="/mentor logo.png" alt="Mentor Textil" class="brand-logo">
         </div>
         
         <div class="welcome-content">
@@ -155,7 +155,7 @@ async function handleSubmit() {
     <div class="right-panel">
       <div class="login-container">
         <div class="login-header">
-          <img src="/mentor logo.png" alt="Mentor Monitor" class="login-logo">
+          <img src="/mentor logo.png" alt="Mentor Textil" class="login-logo">
           <h2 class="welcome-back">Bienvenido de Nuevo</h2>
           <p class="signin-prompt">Inicia sesión en tu cuenta para continuar</p>
         </div>

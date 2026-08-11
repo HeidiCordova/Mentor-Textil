@@ -188,7 +188,7 @@ LineConfig
 - Umbrales ∈ [0, 1]
 - n_frames ∈ [1, 30]
 - cooldown ∈ [0, 60]
-- Modo ∈ {textil, botellas}
+- Modo = textil
 
 **Versionamiento automático:** Cada actualización incrementa `config_version` via trigger PostgreSQL.
 

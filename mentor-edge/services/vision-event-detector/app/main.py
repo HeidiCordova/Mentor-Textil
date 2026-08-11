@@ -2,6 +2,7 @@ import os
 import logging
 import requests
 from .adapters.config_client import ConfigClient
+from .adapters.durable_event_output import DurableEventOutput
 from .adapters.http_event_adapter import HTTPEventAdapter
 from .adapters.cv_image_processor import CVImageProcessor
 from .adapters.postgres_calibration_repository import PostgresCalibrationRepository
@@ -10,15 +11,15 @@ from .application.detector_service import DetectorService
 logger = logging.getLogger('detector.main')
 
 
-def _build_frame_input(camera_url: str, backend: str):
+def _build_frame_input(camera_url: str, backend: str, frame_skip: int):
     if backend == 'gstreamer':
         try:
             from .adapters.gstreamer_adapter import GStreamerAdapter
-            # capture_every=frame_skip -> GStreamer solo hace memcpy en 1 de cada N frames
-            # Reduce el uso de CPU del callback de captura a la mitad (o más)
+            # GStreamer already discards N-1 frames before copying. Return a
+            # processing skip of one so DetectorService does not skip twice.
             adapter = GStreamerAdapter(camera_url, capture_every=frame_skip)
             logger.info('[main] Backend: GStreamer (NVDEC)')
-            return adapter
+            return adapter, 1
         except Exception as exc:
             logger.warning(
                 '[main] GStreamer no disponible (%s) — usando OpenCV como fallback', exc
@@ -26,7 +27,7 @@ def _build_frame_input(camera_url: str, backend: str):
 
     from .adapters.opencv_adapter import OpenCVAdapter as _OCV
     logger.info('[main] Backend: OpenCV (CPU)')
-    return _OCV(camera_url)
+    return _OCV(camera_url), frame_skip
 
 
 def main():
@@ -64,8 +65,8 @@ def main():
     # Defaults from env (overridden by DB config below)
     camera_url = os.getenv('CAMERA_URL', '')
     line_code = os.getenv('LINE_CODE', 'MENTOR_DEFAULT_L1')
-    oee_interval = float(os.getenv('OEE_INTERVAL', '300'))
-    micro_stop_max_s = float(os.getenv('MICRO_STOP_MAX_S', '120'))  # textil default; botellas usa 210
+    oee_interval = float(os.getenv('OEE_INTERVAL', '1800'))
+    micro_stop_max_s = float(os.getenv('MICRO_STOP_MAX_S', '120'))
     frame_backend = os.getenv('FRAME_BACKEND', 'opencv').lower()
     frame_skip = int(os.getenv('FRAME_SKIP', '2'))
     signal_scale = float(os.getenv('SIGNAL_SCALE', '1.0'))
@@ -95,8 +96,28 @@ def main():
             micro_stop_max_s = float(oee['micro_stop_max_s'])
         logger.info('[main] Config loaded from DB (version=%s)', initial_cfg.get('config_version'))
 
-    frame_input = _build_frame_input(camera_url, frame_backend)
-    event_output = HTTPEventAdapter(resiliencia_url, linea_id=linea_id)
+    frame_input, processing_frame_skip = _build_frame_input(
+        camera_url,
+        frame_backend,
+        frame_skip,
+    )
+    event_transport = HTTPEventAdapter(
+        resiliencia_url,
+        linea_id=linea_id,
+        timeout=float(os.getenv('EVENT_HTTP_TIMEOUT_S', '5')),
+    )
+    event_output = DurableEventOutput(
+        event_transport,
+        spool_path=os.getenv(
+            'EVENT_SPOOL_PATH',
+            '/var/lib/mentor/vision-events.sqlite3',
+        ),
+        max_events=int(os.getenv('EVENT_SPOOL_MAX_EVENTS', '10000')),
+        max_event_bytes=int(os.getenv('EVENT_SPOOL_MAX_EVENT_BYTES', '65536')),
+        retry_initial_s=float(os.getenv('EVENT_RETRY_INITIAL_S', '1')),
+        retry_max_s=float(os.getenv('EVENT_RETRY_MAX_S', '60')),
+        max_attempts=int(os.getenv('EVENT_RETRY_MAX_ATTEMPTS', '0')),
+    )
     image_processor = CVImageProcessor()
 
     calibration_repository = None
@@ -122,7 +143,7 @@ def main():
         oee_interval=oee_interval,
         micro_stop_max_s=micro_stop_max_s,
         gateway_url=gateway_url,
-        frame_skip=frame_skip,
+        frame_skip=processing_frame_skip,
         signal_scale=signal_scale,
         calibration_repository=calibration_repository,
         calibration_required_samples=calibration_samples,
@@ -131,7 +152,10 @@ def main():
     )
 
     print(f"Starting vision-event-detector for device: {device_id} line: {line_code}")
-    detector.run()
+    try:
+        detector.run()
+    finally:
+        event_output.close()
 
 
 if __name__ == '__main__':

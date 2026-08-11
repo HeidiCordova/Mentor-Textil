@@ -120,7 +120,7 @@ Core vision processing service implementing hexagonal architecture.
 
 **Domain Layer**:
 - ROI Management
-- Multi-modal signal extraction (Edge, Color, Flow, YOLO)
+- Multi-modal signal extraction (Edge, Color, Flow, Beige)
 - Fusion engine with configurable weights
 - Finite State Machine for event confirmation
 - Automatic calibration
@@ -141,7 +141,7 @@ Core vision processing service implementing hexagonal architecture.
 1. **Edge Signal**: Canny edge detection with density measurement
 2. **Histogram Signal**: HSV histogram correlation for color change detection
 3. **Flow Signal**: Optical flow for vertical movement detection
-4. **YOLO Signal**: Optional object detection (future enhancement)
+4. **Beige Signal**: Color-specific presence signal for textile products
 
 **FSM States**:
 - IDLE: Waiting for signal above high threshold
@@ -206,7 +206,7 @@ Dynamic configuration manager with versioning.
 - Thresholds ∈ [0, 1]
 - FSM n_frames ∈ [1, 30]
 - FSM cooldown ∈ [0, 60]
-- Mode ∈ {textil, botellas}
+- Mode = textil
 
 ### UI Local (Vue 3)
 
@@ -457,11 +457,10 @@ Key metrics exposed:
 
 1. **DeepStream Integration**: GPU-accelerated preprocessing
 2. **Multi-camera Support**: Parallel processing of N cameras
-3. **YOLO Integration**: Object detection for enhanced classification
-4. **ML Model Updates**: Over-the-air model deployment
-5. **Edge ML Training**: Federated learning capability
-6. **Time-series Analytics**: On-device trend analysis
-7. **Alert System**: Real-time notifications via webhook
+3. **ML Model Updates**: Over-the-air model deployment
+4. **Edge ML Training**: Federated learning capability
+5. **Time-series Analytics**: On-device trend analysis
+6. **Alert System**: Real-time notifications via webhook
 
 ## References
 

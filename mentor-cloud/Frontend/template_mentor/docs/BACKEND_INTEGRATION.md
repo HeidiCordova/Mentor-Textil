@@ -266,9 +266,9 @@ Listar todas las plantas.
   "data": [
     {
       "id": 1,
-      "nombre": "ISM Arequipa",
-      "compania": "Industrias San Miguel",
-      "lineas": 5,
+      "nombre": "Art Atlas - Planta 14",
+      "compania": "Art Atlas S.A.",
+      "lineas": 4,
       "activo": true
     }
   ],

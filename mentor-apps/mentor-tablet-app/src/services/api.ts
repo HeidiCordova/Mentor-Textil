@@ -140,15 +140,21 @@ export const api = {
     const lineaId = resolveCloudLineaId()
     if (apiMode === 'CLOUD' && lineaId) {
       // En modo cloud, obtener mode/vel_unit desde cloud-config
-      const res = await request<{ mode: string; vel_unit: string; linea_id: number }>(
+      await request<{ mode: string; vel_unit: string; linea_id: number }>(
         'GET', `/api/linea-config?linea_id=${lineaId}`
       )
-      // snapshot_interval_s: textil=1800s (30min), botellas=300s (5min)
-      const snapshot_interval_s = res.mode === 'textil' ? 1800 : 300
+      // snapshot_interval_s: textil=1800s (30min)
+      const snapshot_interval_s = 1800
       // Sintetizar la estructura que espera configStore (oee.vel_unit, oee.snapshot_interval_s)
       return {
-        mode: res.mode,
-        oee: { vel_unit: res.vel_unit, snapshot_interval_s },
+        mode: 'textil',
+        oee: {
+          micro_stop_max_s: 120,
+          stop_max_s: 86400,
+          vel_unit: 'uh',
+          vel_nominal_us: 0.008333333,
+          snapshot_interval_s,
+        },
       }
     }
     if (apiMode === 'CLOUD') return {}  // sin linea seleccionada, no intentar /edge/config
@@ -159,9 +165,18 @@ export const api = {
     const lineaId = resolveCloudLineaId()
     if (apiMode === 'CLOUD' && lineaId && typeof patch.mode === 'string') {
       // En modo cloud, solo el campo mode se puede actualizar
-      await request('PUT', '/api/linea-config', { linea_id: lineaId, mode: patch.mode })
-      const snapshot_interval_s = patch.mode === 'textil' ? 1800 : 300
-      return { mode: patch.mode, oee: { vel_unit: patch.mode === 'textil' ? 'uh' : 'us', snapshot_interval_s } }
+      await request('PUT', '/api/linea-config', { linea_id: lineaId, mode: 'textil' })
+      const snapshot_interval_s = 1800
+      return {
+        mode: 'textil',
+        oee: {
+          micro_stop_max_s: 120,
+          stop_max_s: 86400,
+          vel_unit: 'uh',
+          vel_nominal_us: 0.008333333,
+          snapshot_interval_s,
+        },
+      }
     }
     return request('PUT', '/edge/config', patch)
   },
@@ -360,12 +375,14 @@ export const api = {
       const qs = params?.linea_id ? `?linea_id=${params.linea_id}` : ''
       const res = await request<{ data: CloudProducto[] }>('GET', `/api/productos${qs}`)
       return (res.data ?? []).filter(p => p.activo).map(p => ({
+        producto_id: p.id,
         sku: p.codigo,
         description: p.nombre,
         active: p.activo
       }))
     }
-    return request('GET', '/edge/catalogs/products')
+    const qs = params?.linea_id ? `?linea_id=${params.linea_id}` : ''
+    return request('GET', `/edge/catalogs/products${qs}`)
   },
 
   operators(): Promise<Operator[]> {

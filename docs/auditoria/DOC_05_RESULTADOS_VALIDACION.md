@@ -25,13 +25,9 @@
 
 ### Configuracion de productos activos en produccion
 
-| ID | Codigo | Producto |
-|---|---|---|
-| 1 | 1232 | Kir Gaseosa |
-| 2 | 12312 | Cocacola |
-| 3 | 32432432 | Inkakola |
-| 4 | 111111 | Pepsi |
-| 5 | 222 | Chilcano |
+Los codigos y descripciones de las prendas se administran en los catalogos del
+sistema. La relacion vigente debe consultarse en produccion para evitar fijar
+datos operativos desactualizados en este documento.
 
 ---
 

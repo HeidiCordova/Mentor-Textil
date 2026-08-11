@@ -17,6 +17,7 @@ type ConfigClient interface {
 type BufferClient interface {
 	GetSummary(ctx context.Context) (*domain.BufferSummary, error)
 	GetRecentEvents(ctx context.Context, limit int, since *time.Time) ([]domain.Event, error)
+	GetVisionCount(ctx context.Context, lineaID int, since, until time.Time) (*domain.VisionCountWindow, error)
 	GetPendingEvents(ctx context.Context, limit int) ([]domain.Event, error)
 	Health(ctx context.Context) (string, error)
 }

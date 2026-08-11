@@ -302,7 +302,7 @@ func (r *analysisRepo) buildWhere(f ports.AnalysisFilter) (string, []any) {
 	}
 	minIS := f.MinIntervalS
 	if minIS <= 0 {
-		minIS = 300
+		minIS = 1800
 	}
 	conditions = append(conditions, fmt.Sprintf("interval_s >= %d", minIS))
 	if len(conditions) == 1 {

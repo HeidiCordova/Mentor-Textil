@@ -12,7 +12,7 @@ export const useFiltersStore = defineStore('filters', () => {
   const selectedLine = ref(null)
   const selectedDevice = ref(null)
   const selectedVariable = ref(null)
-  const aggregation = ref('5 minutos')
+  const aggregation = ref('30 minutos')
 
   function setDateRange(start, end) {
     dateRange.value = { start, end }
@@ -34,7 +34,7 @@ export const useFiltersStore = defineStore('filters', () => {
   function setLine(line) {
     selectedLine.value = line
     selectedDevice.value = null
-    aggregation.value = line?.mode === 'textil' ? '30 minutos' : '5 minutos'
+    aggregation.value = '30 minutos'
   }
 
   function setDevice(device) {
@@ -56,7 +56,7 @@ export const useFiltersStore = defineStore('filters', () => {
     selectedLine.value = null
     selectedDevice.value = null
     selectedVariable.value = null
-    aggregation.value = '5 minutos'
+    aggregation.value = '30 minutos'
   }
 
   return {

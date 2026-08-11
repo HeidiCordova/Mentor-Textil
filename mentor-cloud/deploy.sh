@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"
 COMPOSE_DIR="$PROJECT_ROOT/infrastructure/docker"
 
 if [ ! -f "$COMPOSE_DIR/.env" ]; then
@@ -14,6 +14,9 @@ fi
 
 echo "Construyendo imagenes..."
 docker compose -f "$COMPOSE_DIR/docker-compose.cloud.yml" --env-file "$COMPOSE_DIR/.env" build --no-cache
+
+echo "Aplicando migraciones textile-only..."
+bash "$PROJECT_ROOT/deploy/apply-textile-migrations.sh"
 
 echo "Levantando servicios..."
 docker compose -f "$COMPOSE_DIR/docker-compose.cloud.yml" --env-file "$COMPOSE_DIR/.env" up -d

@@ -220,9 +220,9 @@ export function useTimeline(canvasRef: Ref<HTMLCanvasElement | null>) {
 
   function getSlotMs(): number {
     // Lee snapshot_interval_s del config del edge para que el slot del timeline
-    // coincida con la ventana OEE real (5min para botellas, 30min para textil, etc.)
+    // coincida con la ventana OEE textil real de 30 minutos.
     const oee = configStore.config.oee as Record<string, unknown> | undefined
-    const intervalS = typeof oee?.snapshot_interval_s === 'number' ? oee.snapshot_interval_s : 300
+    const intervalS = typeof oee?.snapshot_interval_s === 'number' ? oee.snapshot_interval_s : 1800
     return Math.max(intervalS, 60) * 1000
   }
 

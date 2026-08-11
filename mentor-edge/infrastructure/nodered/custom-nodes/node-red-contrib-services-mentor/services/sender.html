@@ -1,0 +1,94 @@
+<script type="text/javascript">
+    RED.nodes.registerType("Sender", {
+        category: "Mentor Services",
+        color: "#b6bbc2",
+        defaults: {
+            name: { value: "" },
+            mentor: { value: "", type: "mentor-config" },
+            mysql: { value: "", type: "MySQLdb" },
+            mqtt: { value: "", type: "mqtt-broker" },
+            url: { value: "" },
+            url_alarm: { value: "" },
+            priority: { value: "0" },
+            // Safe rollout default. Increase only after intentionally reviewing
+            // the size of the persistent mqtt_lecturas backlog.
+            batchSize: {
+                value: 1,
+                validate: RED.validators.number()
+            },
+            inflightTimeoutSeconds: {
+                value: 60,
+                validate: RED.validators.number()
+            },
+            requestTimeoutSeconds: {
+                value: 120,
+                validate: RED.validators.number()
+            }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "service.png",
+        label: function () {
+            return this.name || "Sender";
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="Sender">
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-mentor"><i class="icon-globe"></i> Mentor Id</label>
+        <input type="text" id="node-input-mentor">
+    </div>
+    <div class="form-row">
+        <label for="node-input-mysql"><i class="icon-globe"></i> MySql DB</label>
+        <input type="text" id="node-input-mysql">
+    </div>
+    <div class="form-row">
+        <label for="node-input-mqtt"><i class="icon-globe"></i> MQTT</label>
+        <input type="text" id="node-input-mqtt">
+    </div>
+    <div class="form-row">
+        <label for="node-input-url"><i class="fa fa-globe"></i> Rest Data URL</label>
+        <input type="text" id="node-input-url" placeholder="https://">
+    </div>
+    <div class="form-row">
+        <label for="node-input-url_alarm"><i class="fa fa-globe"></i> Rest Alarm URL</label>
+        <input type="text" id="node-input-url_alarm" placeholder="https://">
+    </div>
+    <div class="form-row">
+        <label for="node-input-priority"><i class="fa fa-list"></i> Priority</label>
+        <select id="node-input-priority">
+            <option value="0">MQTT</option>
+            <option value="1">Restful</option>
+            <option value="2">MQTT &amp; GSM</option>
+            <option value="3">Restful &amp; GSM</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-batchSize"><i class="fa fa-tasks"></i> Batch size</label>
+        <input type="number" id="node-input-batchSize" min="1" max="100">
+    </div>
+    <div class="form-row">
+        <label for="node-input-inflightTimeoutSeconds"><i class="fa fa-clock-o"></i> ACK timeout (s)</label>
+        <input type="number" id="node-input-inflightTimeoutSeconds" min="1" max="1800">
+    </div>
+    <div class="form-row">
+        <label for="node-input-requestTimeoutSeconds"><i class="fa fa-clock-o"></i> REST timeout (s)</label>
+        <input type="number" id="node-input-requestTimeoutSeconds" min="1" max="1800">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="Sender">
+    <p>
+        Sends persistent Mentor records through MQTT or REST. Records remain
+        pending until a validated application ACK is persisted.
+    </p>
+    <p>
+        Batch size defaults to 1 as a safe rollout setting. Increasing it drains
+        backlog faster but can create an intentional burst toward the broker.
+    </p>
+</script>

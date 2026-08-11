@@ -96,10 +96,6 @@ func (h *HTTPServer) getConfig(w http.ResponseWriter, r *http.Request, lineaID i
 		response["roi_presencia"] = config.ROIPresencia
 	}
 
-	if config.Yolo != nil {
-		response["yolo"] = config.Yolo
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -115,7 +111,6 @@ func (h *HTTPServer) updateConfig(w http.ResponseWriter, r *http.Request, lineaI
 		OEE          *domain.OEEConfig    `json:"oee"`
 		Cloud        *domain.CloudConfig  `json:"cloud"`
 		Tablet       *domain.TabletConfig `json:"tablet"`
-		Yolo         *domain.YoloConfig   `json:"yolo"`
 		EmpresaID    *int                 `json:"empresa_id"`
 	}
 
@@ -185,12 +180,14 @@ func (h *HTTPServer) updateConfig(w http.ResponseWriter, r *http.Request, lineaI
 
 	if updateReq.Mode != nil && config.Mode != *updateReq.Mode {
 		config.Mode = *updateReq.Mode
-		// Si no se envía OEE explícito, aplicar defaults del nuevo modo
+		// Si no se envía OEE explícito, aplicar los defaults textiles.
 		if updateReq.OEE == nil {
 			modeOEE := domain.ModeDefaultOEE(config.Mode)
 			config.OEE.MicroStopMaxS = modeOEE.MicroStopMaxS
 			config.OEE.StopMaxS = modeOEE.StopMaxS
 			config.OEE.SnapshotInterS = modeOEE.SnapshotInterS
+			config.OEE.VelUnit = modeOEE.VelUnit
+			config.OEE.VelNominalUS = modeOEE.VelNominalUS
 		}
 	} else if updateReq.Mode != nil {
 		config.Mode = *updateReq.Mode
@@ -216,10 +213,6 @@ func (h *HTTPServer) updateConfig(w http.ResponseWriter, r *http.Request, lineaI
 		config.EmpresaID = *updateReq.EmpresaID
 	}
 
-	if updateReq.Yolo != nil {
-		config.Yolo = updateReq.Yolo
-	}
-
 	if err := h.service.UpdateConfig(r.Context(), config); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -243,17 +236,13 @@ func (h *HTTPServer) handleSystem(w http.ResponseWriter, r *http.Request) {
 			"cloud": config.Cloud,
 			"oee":   config.OEE,
 		}
-		if config.Yolo != nil && config.Yolo.AssignedLineaID > 0 {
-			res["yolo_assigned_linea"] = config.Yolo.AssignedLineaID
-		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(res)
 
 	case http.MethodPut:
 		var req struct {
-			Cloud             *domain.CloudConfig `json:"cloud"`
-			OEE               *domain.OEEConfig   `json:"oee"`
-			YoloAssignedLinea *int                `json:"yolo_assigned_linea"`
+			Cloud *domain.CloudConfig `json:"cloud"`
+			OEE   *domain.OEEConfig   `json:"oee"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -278,12 +267,6 @@ func (h *HTTPServer) handleSystem(w http.ResponseWriter, r *http.Request) {
 		}
 		if req.OEE != nil {
 			config.OEE = *req.OEE
-		}
-		if req.YoloAssignedLinea != nil {
-			if config.Yolo == nil {
-				config.Yolo = &domain.YoloConfig{}
-			}
-			config.Yolo.AssignedLineaID = *req.YoloAssignedLinea
 		}
 		if err := h.service.UpdateConfig(r.Context(), config); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -405,9 +388,10 @@ func (h *HTTPServer) handleCalibration(w http.ResponseWriter, r *http.Request) {
 
 func (h *HTTPServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	health := map[string]interface{}{
-		"service":   "edge-config-service",
-		"status":    "ok",
-		"timestamp": time.Now().Format(time.RFC3339),
+		"service":       "edge-config-service",
+		"status":        "ok",
+		"config_schema": "textile-v1",
+		"timestamp":     time.Now().Format(time.RFC3339),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

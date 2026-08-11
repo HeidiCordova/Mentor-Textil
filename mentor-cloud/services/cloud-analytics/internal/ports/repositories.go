@@ -41,7 +41,7 @@ type AnalysisFilter struct {
 	From         string
 	To           string
 	Limit        int
-	MinIntervalS int // 0 means use default (300); set to 1800 for textil lines
+	MinIntervalS int // 0 usa el intervalo textil canónico (1800 s)
 }
 
 type IngestClient interface {
@@ -103,7 +103,7 @@ type OEEFilter struct {
 	From         string
 	To           string
 	Limit        int
-	MinIntervalS int // 0 means use default (300); set to 1800 for textil lines
+	MinIntervalS int // 0 usa el intervalo textil canónico (1800 s)
 }
 
 type OEERepository interface {

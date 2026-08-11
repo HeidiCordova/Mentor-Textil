@@ -24,7 +24,7 @@
           <label>Compañía</label>
           <select v-model="filtros.compania" class="form-control">
             <option value="">Todas</option>
-            <option value="1">Industrias San Miguel</option>
+            <option value="1">Art Atlas</option>
             <option value="2">Indagua</option>
             <option value="3">Demo</option>
             <option value="4">Agrícola Cerro Prieto</option>
@@ -35,8 +35,8 @@
           <label>Planta</label>
           <select v-model="filtros.planta" class="form-control">
             <option value="">Todas</option>
-            <option value="1">ISM Arequipa</option>
-            <option value="2">ISM Lima</option>
+            <option value="1">Planta Textil Lima</option>
+            <option value="2">Planta Textil Norte</option>
             <option value="3">Indagua Principal</option>
             <option value="4">ACP Ica</option>
           </select>
@@ -162,11 +162,11 @@ const filtros = ref({
 })
 
 const reportesRecientes = ref([
-  { id: 1, fecha: '19/11/2025 10:30', tipo: 'OEE', periodo: '01/11 - 18/11', ubicacion: 'ISM Arequipa', formato: 'Excel', estado: 'success', estadoTexto: 'Completado' },
+  { id: 1, fecha: '19/11/2025 10:30', tipo: 'OEE', periodo: '01/11 - 18/11', ubicacion: 'Planta Textil Lima', formato: 'Excel', estado: 'success', estadoTexto: 'Completado' },
   { id: 2, fecha: '18/11/2025 16:45', tipo: 'Producción', periodo: '18/11/2025', ubicacion: 'Todas las plantas', formato: 'PDF', estado: 'success', estadoTexto: 'Completado' },
-  { id: 3, fecha: '18/11/2025 09:15', tipo: 'Paradas', periodo: '15/11 - 17/11', ubicacion: 'ISM Lima / Línea 03', formato: 'Excel', estado: 'success', estadoTexto: 'Completado' },
+  { id: 3, fecha: '18/11/2025 09:15', tipo: 'Paradas', periodo: '15/11 - 17/11', ubicacion: 'Planta Textil Norte / Línea 03', formato: 'Excel', estado: 'success', estadoTexto: 'Completado' },
   { id: 4, fecha: '17/11/2025 14:20', tipo: 'Defectos', periodo: '10/11 - 16/11', ubicacion: 'Indagua Principal', formato: 'CSV', estado: 'success', estadoTexto: 'Completado' },
-  { id: 5, fecha: '17/11/2025 08:00', tipo: 'Rendimiento', periodo: 'Noviembre 2025', ubicacion: 'ISM Arequipa', formato: 'PDF', estado: 'success', estadoTexto: 'Completado' }
+  { id: 5, fecha: '17/11/2025 08:00', tipo: 'Rendimiento', periodo: 'Noviembre 2025', ubicacion: 'Planta Textil Lima', formato: 'PDF', estado: 'success', estadoTexto: 'Completado' }
 ])
 
 function limpiarFiltros() {

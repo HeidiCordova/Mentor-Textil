@@ -9,11 +9,11 @@ import { useApi } from '@/shared/composables/useApi'
 const { loading, error, execute } = useApi()
 
 const empresas = ref([
-  { id: 1, nombre: 'Industrias San Miguel' }
+  { id: 1, nombre: 'Art Atlas' }
 ])
 
 const plantas = ref([
-  { id: 1, nombre: 'Histórico Embotelladora San Miguel', empresaId: 1 }
+  { id: 1, nombre: 'Histórico Planta Textil', empresaId: 1 }
 ])
 
 // TODO: Reemplazar con llamada a API: GET /api/estructuras-tarifarias

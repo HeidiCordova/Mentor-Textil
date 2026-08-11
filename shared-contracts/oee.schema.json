@@ -12,7 +12,7 @@
       "minLength": 1,
       "maxLength": 128,
       "description": "Identificador unico de linea configurado en la UI",
-      "examples": ["ISM_AQP_PERSISTENCIA_L7", "Linea 1"]
+      "examples": ["TEXTIL_LIMA_CORTE_L1", "Linea 1"]
     },
     "time": {
       "type": "integer",
@@ -39,17 +39,40 @@
     "head": {
       "type": "array",
       "items": { "type": "string" },
-      "minItems": 5,
-      "maxItems": 5,
+      "minItems": 17,
+      "maxItems": 17,
       "description": "Nombres de las columnas de metricas",
-      "examples": [["T_DISPONIBLE", "T_MICROPARADA", "T_PARADA_NO_ASIGNADA", "CONTEO_1", "CONTEO_2"]]
+      "examples": [[
+        "T_DISPONIBLE",
+        "T_MICROPARADA",
+        "T_PARADA_NO_ASIGNADA",
+        "T_PARADA_MAYOR",
+        "CONTEO_1",
+        "MARCA",
+        "TAMANIO",
+        "MATERIAL",
+        "DESTINO",
+        "T_REFRIGERIO",
+        "T_CAPACITACION_OBLIGATORIA",
+        "T_MANTENIMIENTO_PLANIFICADO",
+        "T_PARADA_PROGRAMADA",
+        "T_PARADA_NO_PROGRAMADA",
+        "TIPO_PARADA_PROGRAMADA",
+        "TIPO_PARADA_NO_PROGRAMADA",
+        "MERMA"
+      ]]
     },
     "data": {
       "type": "array",
-      "items": { "type": "integer", "minimum": 0 },
-      "minItems": 5,
-      "maxItems": 5,
-      "description": "Valores correspondientes a head. Tiempos en milisegundos, conteos en unidades."
+      "items": {
+        "oneOf": [
+          { "type": "integer", "minimum": 0 },
+          { "type": "string" }
+        ]
+      },
+      "minItems": 17,
+      "maxItems": 17,
+      "description": "Valores correspondientes a head. Tiempos y conteos son enteros; atributos textiles son cadenas."
     }
   }
 }

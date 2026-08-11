@@ -53,12 +53,12 @@ func ensureConfigSchema(db *sql.DB) error {
 			fsm             JSONB NOT NULL DEFAULT '{"n_frames":3,"cooldown":8,"exit_frames":5,"max_wait_exit_frames":50}',
 			mode            VARCHAR(30) NOT NULL DEFAULT 'textil',
 			camera          JSONB,
-			oee             JSONB NOT NULL DEFAULT '{"line_name":"","micro_stop_max_s":120,"stop_max_s":86400,"snapshot_interval_s":1800,"vel_unit":"us","vel_nominal_us":0.5}',
+			oee             JSONB NOT NULL DEFAULT '{"line_name":"","micro_stop_max_s":120,"stop_max_s":86400,"snapshot_interval_s":1800,"vel_unit":"uh","vel_nominal_us":0.008333333}',
 			cloud           JSONB NOT NULL DEFAULT '{"sync_interval_s":300}',
 			tablet          JSONB,
-			yolo            JSONB,
 			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			CONSTRAINT chk_line_config_mode_textil_only CHECK (mode = 'textil')
 		);
 
 		-- Ensure columns exist on pre-existing tables
@@ -66,7 +66,9 @@ func ensureConfigSchema(db *sql.DB) error {
 		ALTER TABLE config.line_config ADD COLUMN IF NOT EXISTS empresa_id INTEGER NOT NULL DEFAULT 0;
 		ALTER TABLE config.line_config ADD COLUMN IF NOT EXISTS cloud_linea_id INTEGER NOT NULL DEFAULT 0;
 		ALTER TABLE config.line_config ADD COLUMN IF NOT EXISTS roi_presencia JSONB;
-		ALTER TABLE config.line_config ADD COLUMN IF NOT EXISTS yolo JSONB;
+		ALTER TABLE config.line_config ALTER COLUMN mode SET DEFAULT 'textil';
+		ALTER TABLE config.line_config ALTER COLUMN oee
+			SET DEFAULT '{"line_name":"","micro_stop_max_s":120,"stop_max_s":86400,"snapshot_interval_s":1800,"vel_unit":"uh","vel_nominal_us":0.008333333}'::JSONB;
 
 		-- Migration: linea_id becomes the unique key instead of device_id
 		ALTER TABLE config.line_config DROP CONSTRAINT IF EXISTS line_config_device_id_key;
@@ -115,14 +117,14 @@ func (r *PostgresRepo) tbl() string { return "config.line_config" }
 // GetConfig retrieves config by linea_id. linea_id=0 returns system defaults.
 func (r *PostgresRepo) GetConfig(ctx context.Context, lineaID int) (*domain.LineConfig, error) {
 	query := fmt.Sprintf(`
-		SELECT id, device_id, config_version, linea_id, empresa_id, roi, roi_presencia, thresholds, fsm, mode, camera, oee, cloud, tablet, yolo, created_at, updated_at
+		SELECT id, device_id, config_version, linea_id, empresa_id, roi, roi_presencia, thresholds, fsm, mode, camera, oee, cloud, tablet, created_at, updated_at
 		FROM %s
 		WHERE linea_id = $1
 	`, r.tbl())
 
 	config := &domain.LineConfig{}
 	var roiJSON, roiPresenciaJSON, thresholdsJSON, fsmJSON, cameraJSON, oeeJSON, cloudJSON []byte
-	var tabletJSON, yoloJSON []byte
+	var tabletJSON []byte
 
 	err := r.db.QueryRowContext(ctx, query, lineaID).Scan(
 		&config.ID,
@@ -139,7 +141,6 @@ func (r *PostgresRepo) GetConfig(ctx context.Context, lineaID int) (*domain.Line
 		&oeeJSON,
 		&cloudJSON,
 		&tabletJSON,
-		&yoloJSON,
 		&config.CreatedAt,
 		&config.UpdatedAt,
 	)
@@ -197,13 +198,6 @@ func (r *PostgresRepo) GetConfig(ctx context.Context, lineaID int) (*domain.Line
 		}
 	}
 
-	if yoloJSON != nil {
-		var yolo domain.YoloConfig
-		if err := json.Unmarshal(yoloJSON, &yolo); err == nil {
-			config.Yolo = &yolo
-		}
-	}
-
 	return config, nil
 }
 
@@ -230,14 +224,9 @@ func (r *PostgresRepo) UpdateConfig(ctx context.Context, config *domain.LineConf
 		tabletJSON, _ = json.Marshal(config.Tablet)
 	}
 
-	var yoloJSON []byte
-	if config.Yolo != nil {
-		yoloJSON, _ = json.Marshal(config.Yolo)
-	}
-
 	query := fmt.Sprintf(`
-		INSERT INTO %s (linea_id, device_id, empresa_id, roi, roi_presencia, thresholds, fsm, mode, camera, oee, cloud, tablet, yolo)
-		VALUES ($9, $11, $10, $1, $12, $2, $3, $4, $5, $6, $7, $8, $13)
+		INSERT INTO %s (linea_id, device_id, empresa_id, roi, roi_presencia, thresholds, fsm, mode, camera, oee, cloud, tablet)
+		VALUES ($9, $11, $10, $1, $12, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (linea_id) DO UPDATE
 			SET device_id = EXCLUDED.device_id,
 			    empresa_id = EXCLUDED.empresa_id,
@@ -250,7 +239,6 @@ func (r *PostgresRepo) UpdateConfig(ctx context.Context, config *domain.LineConf
 			    oee = EXCLUDED.oee,
 			    cloud = EXCLUDED.cloud,
 			    tablet = EXCLUDED.tablet,
-			    yolo = EXCLUDED.yolo,
 			    updated_at = NOW()
 	`, r.tbl())
 
@@ -267,7 +255,6 @@ func (r *PostgresRepo) UpdateConfig(ctx context.Context, config *domain.LineConf
 		config.EmpresaID, // $10
 		config.DeviceID,  // $11
 		roiPresenciaJSON, // $12
-		yoloJSON,         // $13
 	)
 
 	return err

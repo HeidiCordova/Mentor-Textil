@@ -16,7 +16,7 @@ const themeStore = useThemeStore()
           <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2"/>
         </svg>
       </button>
-      <h1 class="header-title">{{ $route.meta.title || 'Mentor Monitor' }}</h1>
+      <h1 class="header-title">{{ $route.meta.title || 'Mentor Textil' }}</h1>
     </div>
 
     <div class="header-right">

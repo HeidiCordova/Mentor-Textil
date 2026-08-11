@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS shared.line_config (
     fsm             JSONB NOT NULL DEFAULT '{}',
     mode            VARCHAR(16) NOT NULL DEFAULT 'textil',
     camera          JSONB,
-    oee             JSONB NOT NULL DEFAULT '{"line_name":"","micro_stop_max_s":210,"stop_max_s":300,"snapshot_interval_s":300}',
+    oee             JSONB NOT NULL DEFAULT '{"line_name":"","micro_stop_max_s":120,"stop_max_s":86400,"snapshot_interval_s":1800,"vel_unit":"uh","vel_nominal_us":0.008333333}',
     cloud           JSONB NOT NULL DEFAULT '{"sync_interval_s":300}',
     tablet          JSONB,
     created_at      TIMESTAMPTZ DEFAULT NOW(),

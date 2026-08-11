@@ -1,4 +1,4 @@
-# Mentor Monitor - Template Frontend
+# Mentor Textil - Template Frontend
 
 Sistema de monitoreo industrial construido con Vue.js 3 y Apache ECharts.
 

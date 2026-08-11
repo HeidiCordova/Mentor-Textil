@@ -149,8 +149,8 @@ onMounted(async () => {
 
       <!-- Header con logo -->
       <div class="text-center mb-8">
-        <img src="/mentor-logo.png" alt="Mentor Monitor" class="h-16 w-auto object-contain mx-auto mb-4 drop-shadow-lg" />
-        <h1 class="text-3xl font-bold tracking-wide text-white">MENTOR <span style="color:#6366f1">MONITOR</span></h1>
+        <img src="/mentor-logo.png" alt="Mentor Textil" class="h-16 w-auto object-contain mx-auto mb-4 drop-shadow-lg" />
+        <h1 class="text-3xl font-bold tracking-wide text-white">MENTOR <span style="color:#6366f1">TEXTIL</span></h1>
         <p class="text-sm text-slate-400 mt-1 tracking-widest uppercase">Tablet Industrial</p>
       </div>
 
@@ -263,7 +263,7 @@ onMounted(async () => {
       </div>
 
       <!-- Versión / footer -->
-      <p class="text-center text-xs text-slate-600 mt-6 tracking-wider">MENTOR MONITOR © 2026</p>
+      <p class="text-center text-xs text-slate-600 mt-6 tracking-wider">MENTOR TEXTIL © 2026</p>
     </div>
   </div>
 </template>

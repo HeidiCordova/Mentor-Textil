@@ -558,10 +558,9 @@ config.canvas_oee (linea_id)
 | Clave | Descripcion |
 |---|---|
 | `T_DISPONIBLE` | Tiempo total disponible del turno (segundos) |
-| `T_MICROPARADA` | Tiempo en micro-paradas (stop_type=MICROPARADA, < 210s) |
+| `T_MICROPARADA` | Tiempo en micro-paradas (stop_type=MICROPARADA, < 120s) |
 | `T_PARADA_NO_ASIGNADA` | Tiempo en paradas pendientes de justificacion |
 | `CONTEO_1` | Unidades contadas por vision artificial (BeigeSignal) |
-| `CONTEO_2` | Unidades contadas por YOLO v8 + TensorRT |
 | `T_CAPACITACION_OBLIGATORIA` | Tiempo en paradas tipo `CAPACITACION` |
 | `T_MANTENIMIENTO_PLANIFICADO` | Tiempo en paradas tipo `MANTENIMIENTO` |
 | `T_PARADA_NO_PROGRAMADA` | Tiempo en paradas no planificadas |

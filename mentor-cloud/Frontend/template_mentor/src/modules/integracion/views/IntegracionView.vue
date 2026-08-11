@@ -308,7 +308,7 @@ onMounted(async () => {
       <!-- ── GENERAL ─────────────────────────────────────────────────────── -->
       <div v-if="docTab === 'general'" class="ig-docs-body">
         <p class="ig-docs-intro">
-          La API REST de Mentor Monitor permite a sistemas externos (BI, ERP, MES, scripts) consultar datos OEE,
+          La API REST de Mentor Textil permite a sistemas externos (BI, ERP, MES, scripts) consultar datos OEE,
           snapshots historicos y paradas en tiempo real. Cada empresa tiene sus propias claves API con scopes especificos.
         </p>
 

@@ -1,5 +1,10 @@
 # Conteo textil acumulativo para Node-RED
 
+La migración de paradas basada en movimiento está documentada en
+[`MOTION_STOPS_V1.md`](MOTION_STOPS_V1.md). Forma parte del mismo parche
+idempotente para que el nodo `Producción Art Atlas` no vuelva a clasificar
+`fsm_state=idle` como parada.
+
 Estado: **backend y flujo preparados para un piloto controlado; envío externo
 todavía bloqueado**.
 

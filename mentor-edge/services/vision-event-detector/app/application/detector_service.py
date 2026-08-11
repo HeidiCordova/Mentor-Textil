@@ -76,6 +76,7 @@ _OEE_STATE_FILE = os.getenv(
     '/var/lib/mentor/last_oee_emit',
 )
 _BACKFILL_MAX_WINDOWS = 96   # cap: 96 × 30 min = 48 h
+_MOTION_STATUS_FRESH_MAX_S = 2.0
 
 
 def _normalize_col_key(nombre: str) -> str:
@@ -156,6 +157,19 @@ class _HealthHandler(BaseHTTPRequestHandler):
             with det._lock:
                 detecting       = getattr(det, '_last_detecting', False)
                 presence_motion = getattr(det, '_last_presence_motion', False)
+                tracker_producing = getattr(det, '_last_tracker_producing', False)
+                motion_ready    = det._presence_detector.is_warmed_up
+                motion_sample_valid = getattr(det, '_last_motion_sample_valid', False)
+                motion_sample_at = getattr(det, '_last_motion_sample_at', 0.0)
+                motion_age_s = (
+                    max(0.0, time.monotonic() - motion_sample_at)
+                    if motion_sample_at > 0.0 else None
+                )
+                motion_fresh = (
+                    motion_sample_valid and
+                    motion_age_s is not None and
+                    motion_age_s <= _MOTION_STATUS_FRESH_MAX_S
+                )
                 fusion_score    = getattr(det, '_last_fusion_score', 0.0)
                 beige_ratio     = getattr(det, '_last_beige_ratio', 0.0)
                 motion_score    = getattr(det, '_last_motion_score', 0.0)
@@ -164,6 +178,10 @@ class _HealthHandler(BaseHTTPRequestHandler):
         else:
             detecting = False
             presence_motion = False
+            tracker_producing = False
+            motion_ready = False
+            motion_fresh = False
+            motion_age_s = None
             fusion_score = 0.0
             beige_ratio  = 0.0
             motion_score = 0.0
@@ -173,14 +191,22 @@ class _HealthHandler(BaseHTTPRequestHandler):
         stop_tracker_state = 'producing'
         active_stop_id = None
         idle_duration_s = 0.0
+        micro_stop_max_s = 120.0
         if det:
             with det._lock:
                 stop_tracker_state = det._stop_tracker.state.value
                 active_stop_id = det._stop_tracker.active_stop_id
                 idle_duration_s = det._stop_tracker.idle_duration_s
+                micro_stop_max_s = det._stop_tracker.micro_stop_max_s
         self._json(200, _json.dumps({
             'detecting': detecting,
             'presence_motion': presence_motion,
+            'tracker_producing': tracker_producing,
+            'motion_ready': motion_ready,
+            'motion_fresh': motion_fresh,
+            'motion_age_s': (
+                round(motion_age_s, 3) if motion_age_s is not None else None
+            ),
             'fusion_score': round(fusion_score, 4),
             'beige_ratio': round(beige_ratio, 4),
             'motion_score': round(motion_score, 4),
@@ -189,6 +215,7 @@ class _HealthHandler(BaseHTTPRequestHandler):
             'stop_tracker_state': stop_tracker_state,
             'active_stop_id': active_stop_id,
             'idle_duration_s': round(idle_duration_s, 1),
+            'micro_stop_max_s': round(micro_stop_max_s, 1),
         }))
 
     def _send_calibrate_status(self):
@@ -443,6 +470,12 @@ class DetectorService:
 
         self._last_beige_ratio  = 0.0
         self._last_motion_score = 0.0
+        self._last_presence_motion = False
+        self._last_tracker_producing = False
+        self._last_motion_sample_valid = False
+        self._last_motion_sample_at = 0.0
+        self._last_fusion_score = 0.0
+        self._last_detecting = False
         self._last_jpeg: bytes = b''
         self._config_version = -1
         self._last_config_check = 0
@@ -916,32 +949,34 @@ class DetectorService:
                         motion_sample_fresh = True
 
                     # Producción activa: cuando el buffer slow-window está lleno, usar SOLO
-                    # movimiento como señal (evita que tela estática en el ROI mantenga
-                    # is_producing=True indefinidamente). Durante calentamiento (~30s iniciales)
-                    # usar beige OR movimiento para no generar falsos idle_wait al arrancar.
+                    # movimiento estable como fuente canónica para OEE, StopTracker y
+                    # Node-RED. fsm_state describe el ciclo textil, pero no puede mantener
+                    # la máquina como activa si se congela a mitad de una prenda.
+                    # Durante el calentamiento no se abren paradas.
                     if self._presence_detector.is_warmed_up:
-                        is_producing = motion_present      # con latch → para OEE (estable)
-                        # Para stop_tracker: motion_present OR fsm en WAIT_EXIT.
-                        # - WAIT_EXIT: la FSM sabe que hay una pieza activa → produciendo siempre.
-                        #   Si la tela va muy lenta, motion_present puede caer en 60s aunque
-                        #   la máquina esté produciendo → falsa PARADA_NO_ASIGNADA.
-                        # - Para paros reales durante WAIT_EXIT: max_wait_exit_frames=10000
-                        #   (~13 min) actúa de timeout de seguridad → CORTE+IDLE → stop abre.
-                        # - Fuera de WAIT_EXIT (IDLE/DETECTING/COOLDOWN): motion_present es la
-                        #   señal estable (exit_hold=750 ≈ 60s) sin oscilaciones de motion_now.
-                        fsm_tracking = (self.fsm._state.value == 'en_prenda')
-                        is_producing_tracker = motion_present or fsm_tracking
+                        is_producing = motion_present
+                        is_producing_tracker = motion_present
                     else:
                         is_producing = (coverage >= self._presence_beige_threshold) or motion_present
                         # During warmup (~30 s) the slow-window buffer is empty, so
                         # motion_now = False always.  Feed True to stop_tracker to
                         # avoid creating a false MICROPARADA on every container restart.
                         is_producing_tracker = True
-                    self._last_presence_motion = is_producing_tracker
-                    self.oee.tick(is_producing)
-                    stop_actions = self._stop_tracker.update(is_producing_tracker)
-                    for action in stop_actions:
-                        self._handle_stop_action(action)
+                    # Contrato de /status:
+                    # - presence_motion representa exclusivamente el movimiento
+                    #   físico estable observado en el ROI.
+                    # - tracker_producing muestra la misma decisión ya entregada al
+                    #   StopTracker, útil para auditar que no existe divergencia.
+                    # fsm_state se reporta aparte y no decide paradas.
+                    self._last_presence_motion = motion_present
+                    self._last_tracker_producing = is_producing_tracker
+                    self._last_motion_sample_valid = motion_sample_fresh
+                    if motion_sample_fresh:
+                        self._last_motion_sample_at = time.monotonic()
+                        self.oee.tick(is_producing)
+                        stop_actions = self._stop_tracker.update(is_producing_tracker)
+                        for action in stop_actions:
+                            self._handle_stop_action(action)
 
                     self._last_beige_ratio  = round(float(signals.beige), 4)
                     self._last_motion_score = round(motion_score, 4)

@@ -1,6 +1,8 @@
 # Piloto Node-RED v4 en caliente
 
-Este paquete cambia unicamente la procedencia de `L1_CONTEO_1`:
+Este paquete cambia la procedencia de `L1_CONTEO_1` y migra la clasificación
+de tiempos de parada desde `fsm_state=idle` hacia el contrato de movimiento
+físico del detector:
 
 ```text
 PostgreSQL /vision/counter
@@ -12,6 +14,10 @@ PostgreSQL /vision/counter
 No reinicia ni recrea el contenedor Node-RED. El despliegue usa Admin API v2,
 el `rev` actual y `Node-RED-Deployment-Type: nodes`. Conserva el blob cifrado
 de credenciales completo.
+
+El detector nuevo debe desplegarse primero. Antes de aplicar el candidato,
+`/status` debe entregar `presence_motion`, `motion_ready`, `motion_fresh` y
+`micro_stop_max_s`. Ver `MOTION_STOPS_V1.md`.
 
 ## Acciones
 

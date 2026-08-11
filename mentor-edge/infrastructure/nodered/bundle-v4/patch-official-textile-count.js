@@ -63,6 +63,11 @@ const COUNT_OWNER_MARKER =
   `// ${PATCH_VERSION} - CONTEO_1 es el contador CORTE acumulativo del backend.`;
 const READ_ONLY_MARKER =
   `// ${PATCH_VERSION} - L1_conteo_1 es de solo lectura en este nodo.`;
+const MOTION_STOP_VERSION = "mentor-motion-stops:v1";
+const MOTION_STOP_MARKER =
+  `// ${MOTION_STOP_VERSION} - las paradas usan presence_motion, no fsm_state.`;
+const MOTION_STOP_CONTEXT_KEY = "prod_stop_logic_version";
+const MOTION_READY_CONTEXT_KEY = "prod_motion_observation_ready";
 const COUNT_OWNER_MARKER_RE =
   /\/\/ mentor-textile-count:v[\w.-]+ - CONTEO_1 [^\r\n]+/;
 const READ_ONLY_MARKER_RE =
@@ -500,6 +505,171 @@ function removeLegacyCountLogic(node, changes) {
   node.func = source;
 }
 
+function migrateMotionStopLogic(node, changes) {
+  let source = node.func;
+  if (source.includes(MOTION_STOP_MARKER)) {
+    if (/estadoActual\s*===\s*["']idle["']/.test(source)) {
+      throw new Error(
+        "Produccion tiene marcador de movimiento pero conserva parada por idle"
+      );
+    }
+    return;
+  }
+
+  const legacyValidation = [
+    "// Validar respuesta del detector",
+    "if (!datos || typeof datos.fsm_state !== \"string\") {",
+    "    node.warn(\"Producción: mensaje sin fsm_state\");",
+    "    return null;",
+    "}",
+    "",
+    "const estadoActual = datos.fsm_state;",
+    "const ahora = Date.now();",
+  ].join("\n");
+  const motionValidation = [
+    "// Validar el contrato completo de /status. Un dato incompleto no debe",
+    "// convertirse silenciosamente en una parada.",
+    "if (!datos ||",
+    "    typeof datos.fsm_state !== \"string\" ||",
+    "    typeof datos.presence_motion !== \"boolean\" ||",
+    "    typeof datos.motion_ready !== \"boolean\" ||",
+    "    typeof datos.motion_fresh !== \"boolean\" ||",
+    "    !Number.isFinite(Number(datos.micro_stop_max_s)) ||",
+    "    Number(datos.micro_stop_max_s) <= 3) {",
+    "    node.warn(\"Producción: contrato /status de movimiento incompleto\");",
+    "    return null;",
+    "}",
+    "",
+    "const ahora = Date.now();",
+    "",
+    "// Durante calentamiento, caída de cámara o muestra inválida no se",
+    "// clasifica tiempo: false todavía no representa una parada observable.",
+    "if (!datos.motion_ready || !datos.motion_fresh) {",
+    `    context.set(${JSON.stringify(MOTION_READY_CONTEXT_KEY)}, false);`,
+    "    context.set(\"prod_ultimo_tiempo_ms\", ahora);",
+    "    return null;",
+    "}",
+    "",
+    `const primeraMuestraLista = context.get(${JSON.stringify(MOTION_READY_CONTEXT_KEY)}) !== true;`,
+    `context.set(${JSON.stringify(MOTION_READY_CONTEXT_KEY)}, true);`,
+    "",
+    "const estadoActual = datos.fsm_state;",
+    "const hayMovimiento = datos.presence_motion;",
+    "const limiteMicroparadaS = Number(datos.micro_stop_max_s);",
+  ].join("\n");
+  if (!source.includes(legacyValidation)) {
+    throw new Error(
+      "no se encontró la validación legacy de /status en Produccion"
+    );
+  }
+  source = source.replace(legacyValidation, motionValidation);
+
+  const elapsedGuard = [
+    "    if (segundos < 0 || segundos > 15) {",
+    "        segundos = 0;",
+    "    }",
+  ].join("\n");
+  const readyElapsedGuard = [
+    "    if (primeraMuestraLista || segundos < 0 || segundos > 15) {",
+    "        segundos = 0;",
+    "    }",
+  ].join("\n");
+  if (!source.includes(elapsedGuard)) {
+    throw new Error("no se encontró la protección de intervalo en Produccion");
+  }
+  source = source.replace(elapsedGuard, readyElapsedGuard);
+
+  const sectionStart = source.indexOf(
+    "// 3. MICROPARADA Y PARADA NO ASIGNADA"
+  );
+  const sectionEndMarker = [
+    "// -----------------------------------------------------",
+    "// Guardar variables globales para Modbus",
+  ].join("\n");
+  const sectionEnd = source.indexOf(sectionEndMarker, sectionStart);
+  if (sectionStart < 0 || sectionEnd < 0) {
+    throw new Error("no se encontró la sección legacy de paradas");
+  }
+
+  const motionSection = [
+    "// 3. MICROPARADA Y PARADA NO ASIGNADA",
+    "// -----------------------------------------------------",
+    "",
+    MOTION_STOP_MARKER,
+    `const VERSION_LOGICA_PARADAS = ${JSON.stringify(MOTION_STOP_VERSION)};`,
+    "",
+    "// Un hot-deploy conserva el contexto del nodo. Se descarta solamente el",
+    "// candidato interno creado por la lógica legacy; nunca los acumulados T_*.",
+    `if (context.get(${JSON.stringify(MOTION_STOP_CONTEXT_KEY)}) !== VERSION_LOGICA_PARADAS) {`,
+    "    tiempoIdle = 0;",
+    "    pnaActiva = false;",
+    `    context.set(${JSON.stringify(MOTION_STOP_CONTEXT_KEY)}, VERSION_LOGICA_PARADAS);`,
+    "}",
+    "",
+    "// fsm_state describe la etapa textil (idle, beige_in, en_prenda,",
+    "// cooldown). No se usa para decidir si la máquina está parada.",
+    "// presence_motion es la señal estable de movimiento del detector.",
+    "if (!hayMovimiento) {",
+    "",
+    "    tiempoIdle += segundos;",
+    "",
+    "    // Al superar el límite, todo el periodo se reclasifica como PNA.",
+    "    if (!pnaActiva && tiempoIdle >= limiteMicroparadaS) {",
+    "        tiempoParadaNoAsignada += Math.floor(tiempoIdle);",
+    "        pnaActiva = true;",
+    "    }",
+    "    else if (pnaActiva) {",
+    "        tiempoParadaNoAsignada += segundos;",
+    "    }",
+    "",
+    "}",
+    "else {",
+    "",
+    "    // Cuando vuelve el movimiento, una pausa breve se confirma de forma",
+    "    // retroactiva como microparada. Menos de 3 s se descarta como ruido.",
+    "    if (",
+    "        !pnaActiva &&",
+    "        tiempoIdle >= 3 &&",
+    "        tiempoIdle < limiteMicroparadaS",
+    "    ) {",
+    "        tiempoMicroparada += Math.floor(tiempoIdle);",
+    "    }",
+    "",
+    "    tiempoIdle = 0;",
+    "    pnaActiva = false;",
+    "}",
+    "",
+  ].join("\n");
+  source =
+    source.slice(0, sectionStart) + motionSection + source.slice(sectionEnd);
+
+  const debugStart = [
+    "    estado_actual: estadoActual,",
+    "    estado_anterior: estadoAnterior || \"inicio\",",
+    "    intervalo_segundos: segundos,",
+  ].join("\n");
+  const motionDebug = [
+    "    estado_actual: estadoActual,",
+    "    estado_anterior: estadoAnterior || \"inicio\",",
+    "    presencia_movimiento: hayMovimiento,",
+    "    puntaje_movimiento: Number(datos.motion_score) || 0,",
+    "    estado_gestor_parada: datos.stop_tracker_state || \"sin_dato\",",
+    "    movimiento_listo: datos.motion_ready,",
+    "    movimiento_fresco: datos.motion_fresh,",
+    "    limite_microparada_segundos: limiteMicroparadaS,",
+    "    intervalo_segundos: segundos,",
+  ].join("\n");
+  if (!source.includes(debugStart)) {
+    throw new Error("no se encontró el payload debug de Produccion");
+  }
+  source = source.replace(debugStart, motionDebug);
+
+  node.func = source;
+  changes.push(
+    "paradas de Produccion migradas de fsm_state idle a presence_motion"
+  );
+}
+
 function ensureOutput(node, outputIndex) {
   if (!Array.isArray(node.wires)) node.wires = [];
   while (node.wires.length <= outputIndex) node.wires.push([]);
@@ -878,6 +1048,14 @@ function assertValid(
       !production.func.includes(READ_ONLY_MARKER)) {
     throw new Error("faltan marcadores v4 en Produccion");
   }
+  if (!production.func.includes(MOTION_STOP_MARKER) ||
+      !production.func.includes("typeof datos.presence_motion !== \"boolean\"") ||
+      !production.func.includes("typeof datos.motion_ready !== \"boolean\"") ||
+      !production.func.includes("typeof datos.motion_fresh !== \"boolean\"") ||
+      !production.func.includes("Number(datos.micro_stop_max_s)") ||
+      /estadoActual\s*===\s*["']idle["']/.test(production.func)) {
+    throw new Error("Produccion no usa exclusivamente movimiento para paradas");
+  }
   for (const [id, serialized] of untouchedById) {
     const node = flows.find((candidate) => candidate.id === id);
     if (!node || JSON.stringify(node) !== serialized) {
@@ -1062,6 +1240,7 @@ function patchFlows(inputFlows, rawOptions = {}) {
   const changes = [];
 
   removeLegacyCountLogic(production, changes);
+  migrateMotionStopLogic(production, changes);
   if (JSON.stringify(production.wires || []) !== productionWiresBefore) {
     throw new Error("se modificaron conexiones de Produccion");
   }
@@ -1255,6 +1434,10 @@ module.exports = {
   IDS,
   LOCK_STORE_KEY,
   MIN_AS_OF_LAG_MS,
+  MOTION_STOP_MARKER,
+  MOTION_STOP_CONTEXT_KEY,
+  MOTION_READY_CONTEXT_KEY,
+  MOTION_STOP_VERSION,
   OBSOLETE_IDS,
   PATCH_VERSION,
   READ_ONLY_MARKER,

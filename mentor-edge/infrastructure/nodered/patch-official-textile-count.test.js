@@ -13,6 +13,8 @@ const {
   LOCK_STORE_KEY,
   MIN_AS_OF_LAG_MS,
   MAX_TOO_EARLY_RETRIES,
+  MOTION_STOP_CONTEXT_KEY,
+  MOTION_STOP_MARKER,
   OBSOLETE_IDS,
   READ_ONLY_MARKER,
   SAMPLE_INTERVAL_MS,
@@ -98,6 +100,29 @@ function executeFunction(source, msg, runtime) {
   );
 }
 
+function executeProductionAt(source, runtime, timestamp, payload) {
+  const originalNow = Date.now;
+  Date.now = () => timestamp;
+  try {
+    return executeFunction(source, {payload}, runtime);
+  } finally {
+    Date.now = originalNow;
+  }
+}
+
+function motionStatus(overrides = {}) {
+  return {
+    fsm_state: "beige_in",
+    presence_motion: true,
+    motion_ready: true,
+    motion_fresh: true,
+    micro_stop_max_s: 20,
+    motion_score: 0.02,
+    stop_tracker_state: "producing",
+    ...overrides,
+  };
+}
+
 function validPayload(overrides = {}) {
   return {
     linea_id: 1,
@@ -121,25 +146,96 @@ function legacyProductionNode() {
     type: "function",
     z: "tab-detector",
     name: "Produccion Art Atlas",
-    func: [
-      "let conteo = leerGlobal(\"L1_conteo_1\");",
-      "let tiempoDisponible = leerGlobal(\"L1_t_disponible\");",
-      "const estadoAnterior = context.get(\"prod_estado_anterior\");",
-      "const estadoActual = \"idle\";",
-      "// Se considera un corte terminado cuando la prenda sale:",
-      "// en_prenda -> idle",
-      "if (",
-      "    estadoAnterior === \"en_prenda\" &&",
-      "    estadoActual === \"idle\"",
-      ") {",
-      "    conteo += 1;",
-      "}",
-      "global.set(",
-      "    \"L1_conteo_1\",",
-      "    Math.floor(conteo)",
-      ");",
-      "return msg;",
-    ].join("\n"),
+    func: `const datos = msg.payload;
+
+// Validar respuesta del detector
+if (!datos || typeof datos.fsm_state !== "string") {
+    node.warn("Producción: mensaje sin fsm_state");
+    return null;
+}
+
+const estadoActual = datos.fsm_state;
+const ahora = Date.now();
+
+function leerGlobal(nombre) {
+    const valor = Number(global.get(nombre));
+    return Number.isFinite(valor) && valor >= 0 ? valor : 0;
+}
+
+const ultimoTiempo = context.get("prod_ultimo_tiempo_ms");
+let segundos = 0;
+if (typeof ultimoTiempo === "number") {
+    segundos = Math.floor((ahora - ultimoTiempo) / 1000);
+    if (segundos < 0 || segundos > 15) {
+        segundos = 0;
+    }
+}
+context.set("prod_ultimo_tiempo_ms", ahora);
+
+let tiempoDisponible = leerGlobal("L1_t_disponible");
+let tiempoMicroparada = leerGlobal("L1_t_microparada");
+let tiempoParadaNoAsignada = leerGlobal("L1_t_parada_no_asignada");
+let conteo = leerGlobal("L1_conteo_1");
+let tiempoIdle = Number(context.get("prod_tiempo_idle_s")) || 0;
+let pnaActiva = context.get("prod_pna_activa") === true;
+const estadoAnterior = context.get("prod_estado_anterior");
+
+tiempoDisponible += segundos;
+
+// Se considera un corte terminado cuando la prenda sale:
+// en_prenda -> idle
+if (
+    estadoAnterior === "en_prenda" &&
+    estadoActual === "idle"
+) {
+    conteo += 1;
+}
+
+// 3. MICROPARADA Y PARADA NO ASIGNADA
+// -----------------------------------------------------
+
+if (estadoActual === "idle") {
+    tiempoIdle += segundos;
+    if (!pnaActiva && tiempoIdle > 210) {
+        tiempoParadaNoAsignada += Math.floor(tiempoIdle);
+        pnaActiva = true;
+    }
+    else if (pnaActiva) {
+        tiempoParadaNoAsignada += segundos;
+    }
+}
+else if (estadoActual === "en_prenda") {
+    if (!pnaActiva && tiempoIdle > 3 && tiempoIdle <= 210) {
+        tiempoMicroparada += Math.floor(tiempoIdle);
+    }
+    tiempoIdle = 0;
+    pnaActiva = false;
+}
+
+// -----------------------------------------------------
+// Guardar variables globales para Modbus
+// -----------------------------------------------------
+
+global.set("L1_t_disponible", Math.floor(tiempoDisponible));
+global.set("L1_t_microparada", Math.floor(tiempoMicroparada));
+global.set("L1_t_parada_no_asignada", Math.floor(tiempoParadaNoAsignada));
+global.set(
+    "L1_conteo_1",
+    Math.floor(conteo)
+);
+
+context.set("prod_tiempo_idle_s", tiempoIdle);
+context.set("prod_pna_activa", pnaActiva);
+context.set("prod_estado_anterior", estadoActual);
+
+msg.payload = {
+    estado_actual: estadoActual,
+    estado_anterior: estadoAnterior || "inicio",
+    intervalo_segundos: segundos,
+    tiempo_idle_segundos: Math.floor(tiempoIdle)
+};
+
+return msg;`,
     outputs: 1,
     wires: [["production-debug"]],
   };
@@ -668,6 +764,136 @@ test("patch v4 acumulativo es idempotente y mantiene Sender/cadena", () => {
   for (const obsoleteId of Object.values(OBSOLETE_IDS)) {
     assert.equal(first.flows.some((node) => node.id === obsoleteId), false);
   }
+});
+
+test("paradas usan movimiento en cualquier estado textil", () => {
+  const patched = patchFlows(syntheticFlows()).flows;
+  const source = patched.find(
+    (node) => node.id === "production-function"
+  ).func;
+  assert.ok(source.includes(MOTION_STOP_MARKER));
+  assert.doesNotMatch(source, /estadoActual\s*===\s*["']idle["']/);
+
+  const runtime = functionRuntime({
+    L1_t_disponible: 0,
+    L1_t_microparada: 0,
+    L1_t_parada_no_asignada: 0,
+    L1_conteo_1: 0,
+  });
+  executeProductionAt(source, runtime, 0, motionStatus());
+  for (const [time, fsmState] of [
+    [5000, "idle"],
+    [10000, "beige_in"],
+    [15000, "en_prenda"],
+    [20000, "cooldown"],
+  ]) {
+    executeProductionAt(
+      source,
+      runtime,
+      time,
+      motionStatus({fsm_state: fsmState, presence_motion: true})
+    );
+  }
+  assert.equal(runtime.flowValues.get("prod_tiempo_idle_s"), 0);
+  assert.equal(runtime.globalValues.get("L1_t_microparada"), 0);
+  assert.equal(runtime.globalValues.get("L1_t_parada_no_asignada"), 0);
+
+  for (const time of [25000, 30000, 35000]) {
+    executeProductionAt(
+      source,
+      runtime,
+      time,
+      motionStatus({fsm_state: "en_prenda", presence_motion: false})
+    );
+  }
+  executeProductionAt(source, runtime, 40000, motionStatus());
+  assert.equal(runtime.globalValues.get("L1_t_microparada"), 15);
+  assert.equal(runtime.globalValues.get("L1_t_parada_no_asignada"), 0);
+});
+
+test("cruce del umbral abre PNA una vez y no crea micro al reanudar", () => {
+  const source = patchFlows(syntheticFlows()).flows.find(
+    (node) => node.id === "production-function"
+  ).func;
+  const runtime = functionRuntime({
+    L1_t_disponible: 0,
+    L1_t_microparada: 0,
+    L1_t_parada_no_asignada: 0,
+    L1_conteo_1: 0,
+  });
+  executeProductionAt(source, runtime, 0, motionStatus());
+  for (const time of [5000, 10000, 15000, 20000]) {
+    executeProductionAt(
+      source,
+      runtime,
+      time,
+      motionStatus({presence_motion: false})
+    );
+  }
+  assert.equal(runtime.globalValues.get("L1_t_parada_no_asignada"), 20);
+  assert.equal(runtime.flowValues.get("prod_pna_activa"), true);
+
+  executeProductionAt(
+    source,
+    runtime,
+    25000,
+    motionStatus({presence_motion: false})
+  );
+  assert.equal(runtime.globalValues.get("L1_t_parada_no_asignada"), 25);
+  executeProductionAt(source, runtime, 30000, motionStatus());
+  assert.equal(runtime.globalValues.get("L1_t_microparada"), 0);
+  assert.equal(runtime.globalValues.get("L1_t_parada_no_asignada"), 25);
+  assert.equal(runtime.flowValues.get("prod_pna_activa"), false);
+});
+
+test("warmup, contrato inválido y cutover no crean microparadas fantasma", () => {
+  const source = patchFlows(syntheticFlows()).flows.find(
+    (node) => node.id === "production-function"
+  ).func;
+  const runtime = functionRuntime(
+    {
+      L1_t_disponible: 100,
+      L1_t_microparada: 7,
+      L1_t_parada_no_asignada: 11,
+      L1_conteo_1: 5,
+    },
+    {
+      prod_tiempo_idle_s: 180,
+      prod_pna_activa: true,
+      prod_ultimo_tiempo_ms: 0,
+    }
+  );
+
+  assert.equal(
+    executeProductionAt(
+      source,
+      runtime,
+      5000,
+      motionStatus({motion_ready: false, presence_motion: false})
+    ),
+    null
+  );
+  assert.equal(
+    executeProductionAt(source, runtime, 10000, {fsm_state: "idle"}),
+    null
+  );
+  assert.equal(
+    executeProductionAt(
+      source,
+      runtime,
+      15000,
+      motionStatus({motion_fresh: false, presence_motion: false})
+    ),
+    null
+  );
+  executeProductionAt(source, runtime, 20000, motionStatus());
+
+  assert.equal(runtime.flowValues.get(MOTION_STOP_CONTEXT_KEY), "mentor-motion-stops:v1");
+  assert.equal(runtime.flowValues.get("prod_tiempo_idle_s"), 0);
+  assert.equal(runtime.flowValues.get("prod_pna_activa"), false);
+  assert.equal(runtime.globalValues.get("L1_t_microparada"), 7);
+  assert.equal(runtime.globalValues.get("L1_t_parada_no_asignada"), 11);
+  assert.equal(runtime.warnings.length, 1);
 });
 
 test("migracion v3 elimina recuperación y sus wires administrados", () => {

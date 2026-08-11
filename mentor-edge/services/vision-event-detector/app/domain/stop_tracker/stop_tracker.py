@@ -100,6 +100,11 @@ class StopTracker:
         return self._state
 
     @property
+    def micro_stop_max_s(self) -> float:
+        """Umbral efectivo compartido con consumidores de ``/status``."""
+        return self._micro_stop_max_s
+
+    @property
     def active_stop_id(self) -> Optional[str]:
         return self._active_stop_id
 

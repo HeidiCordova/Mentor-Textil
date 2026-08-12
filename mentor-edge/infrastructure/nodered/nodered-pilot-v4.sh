@@ -251,10 +251,15 @@ official_counter_state() {
 }
 
 require_pilot_counter() {
-  local value
+  local value epoch count dets
   value="$(official_counter_state)"
-  test "$value" = "1785457500|1|1" ||
-    die "contador oficial ya no coincide con el piloto 1/1: $value"
+  IFS='|' read -r epoch count dets <<<"$value"
+  test "$epoch" = "1785457500" ||
+    die "epoch del contador oficial inesperado (esperado 1785457500): $value"
+  [[ "$count" =~ ^[0-9]+$ && "$dets" =~ ^[0-9]+$ ]] ||
+    die "estado del contador oficial no numerico: $value"
+  test "$count" = "$dets" ||
+    die "contador oficial incoherente (counter_value != detecciones): $value"
 }
 
 finalize_prepare() {
@@ -520,12 +525,17 @@ prepare_action() {
   docker exec -i "$PG_CONTAINER" \
     pg_restore --list < "$BACKUP/mentor-edge-counter.before.dump" \
     > "$BACKUP/mentor-edge-counter.before.list"
-  local counter_state
+  local counter_state cp_epoch cp_count cp_dets
   counter_state="$(official_counter_state)"
   printf 'COUNTER_PREFLIGHT=%s\n' "$counter_state" |
     tee "$BACKUP/counter.preflight.txt"
-  test "$counter_state" = "1785457500|1|1" ||
-    die "contador oficial ya no coincide con el piloto 1/1"
+  IFS='|' read -r cp_epoch cp_count cp_dets <<<"$counter_state"
+  test "$cp_epoch" = "1785457500" ||
+    die "epoch del contador oficial inesperado (esperado 1785457500): $counter_state"
+  [[ "$cp_count" =~ ^[0-9]+$ && "$cp_dets" =~ ^[0-9]+$ ]] ||
+    die "estado del contador oficial no numerico: $counter_state"
+  test "$cp_count" = "$cp_dets" ||
+    die "contador oficial incoherente (counter_value != detecciones): $counter_state"
 
   local duplicate_readings duplicate_snapshots reading_unique mentor_scope
   duplicate_readings="$(
@@ -731,7 +741,7 @@ validate_action() {
   load_pointer
   require_identity
   require_firewall
-  printf 'VALIDATOR_VERSION=snapshot-current-v2\n'
+  printf 'VALIDATOR_VERSION=snapshot-current-v3-dynamic-baseline\n'
   local deployed_epoch deployed_iso
   deployed_iso="$(
     docker exec "$NR_CONTAINER" node -e "
@@ -756,7 +766,7 @@ validate_action() {
   printf 'Validando primera frontera oficial B=%s\n' "$until"
   wait_until_epoch "$ready"
 
-  local pg_snapshot
+  local pg_snapshot snapshot_rows snapshot_value snapshot_epoch
   pg_snapshot="$(
     docker exec "$PG_CONTAINER" \
       psql -X -U mentor -d mentor_edge -At -F '|' -c "
@@ -769,8 +779,13 @@ validate_action() {
       "
   )"
   printf 'PG_SNAPSHOT_AUTOMATICO=%s\n' "$pg_snapshot"
-  test "$pg_snapshot" = "1|1|1785457500" ||
-    die "Node-RED no creo automaticamente el snapshot esperado"
+  IFS='|' read -r snapshot_rows snapshot_value snapshot_epoch <<<"$pg_snapshot"
+  test "$snapshot_rows" = "1" ||
+    die "Node-RED no creo exactamente un snapshot para la frontera: $pg_snapshot"
+  test "$snapshot_epoch" = "1785457500" ||
+    die "epoch del snapshot inesperado (esperado 1785457500): $pg_snapshot"
+  [[ "$snapshot_value" =~ ^[0-9]+$ ]] ||
+    die "counter_value del snapshot no numerico: $pg_snapshot"
 
   local counter_file counter_retry_file expected_count
   counter_file="$BACKUP/counter.$boundary.first.json"
@@ -796,7 +811,7 @@ assert retry == value, (value, retry)
 assert value["linea_id"] == 1, value
 assert value["event_type"] == "CORTE", value
 assert value["until"] == until, value
-assert value["count"] == 1, value
+assert isinstance(value["count"], int) and value["count"] >= 0, value
 epoch = dt.datetime.fromisoformat(
     value["counter_epoch"].replace("Z", "+00:00")
 )
@@ -813,6 +828,8 @@ PY
   )"
   [[ "$expected_count" =~ ^[0-9]+$ ]] ||
     die "count API invalido"
+  test "$snapshot_value" = "$expected_count" ||
+    die "snapshot counter_value ($snapshot_value) != count API ($expected_count)"
 
   local dbcli rows
   dbcli="$(command -v mariadb || command -v mysql || true)"

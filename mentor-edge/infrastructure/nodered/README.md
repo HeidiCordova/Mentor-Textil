@@ -113,10 +113,10 @@ Resultados actuales:
 
 - SaveDB: `24/24`.
 - Sender: `10/10`.
-- parche Node-RED v4: `31/31`.
+- parche Node-RED v4: `41/41`.
 - cola durable del detector: `10/10`.
 - calibración persistente: `10/10`.
-- dry-run sobre el `flows.json` real: 16 cambios, hash sin modificación.
+- dry-run sobre el `flows.json` real: 18 cambios, hash sin modificación.
 
 ## Límites y puertas de seguridad
 

@@ -16,6 +16,7 @@ const {
   MOTION_STOP_CONTEXT_KEY,
   MOTION_STOP_MARKER,
   OBSOLETE_IDS,
+  PROGRESS_DEBUG_MARKER,
   READ_ONLY_MARKER,
   SAMPLE_INTERVAL_MS,
   SAMPLE_LOCK_TTL_MS,
@@ -119,6 +120,17 @@ function motionStatus(overrides = {}) {
     micro_stop_max_s: 20,
     motion_score: 0.02,
     stop_tracker_state: "producing",
+    progress_estimated_pct: 25,
+    progress_valid: true,
+    progress_observable: true,
+    progress_state: "active",
+    active_cycle_s: 300,
+    ideal_cycle_s: 1200,
+    progress_product_id: 17,
+    progress_run_id: "run-17",
+    progress_reason: null,
+    progress_last_completion_event_id: null,
+    progress_last_completion_context_valid: null,
     ...overrides,
   };
 }
@@ -682,6 +694,9 @@ test("patch v4 acumulativo es idempotente y mantiene Sender/cadena", () => {
   const publisherBefore = structuredClone(
     input.find((node) => node.id === AUDIT.globalPublisher)
   );
+  const genericColumnsBefore = structuredClone(
+    input.find((node) => node.id === AUDIT.genericIn).columns
+  );
 
   const first = patchFlows(input);
   const second = patchFlows(first.flows);
@@ -693,10 +708,16 @@ test("patch v4 acumulativo es idempotente y mantiene Sender/cadena", () => {
   );
   assert.ok(production.func.includes(COUNT_OWNER_MARKER));
   assert.ok(production.func.includes(READ_ONLY_MARKER));
+  assert.ok(production.func.includes(PROGRESS_DEBUG_MARKER));
   assert.doesNotMatch(production.func, /conteo\s*\+=\s*1/);
   assert.doesNotMatch(
     production.func,
     /global\.set\s*\(\s*["']L1_conteo_1/
+  );
+  assert.doesNotMatch(production.func, /global\.set\s*\(\s*["']L1_avance/i);
+  assert.deepEqual(
+    first.flows.find((node) => node.id === AUDIT.genericIn).columns,
+    genericColumnsBefore
   );
   assert.deepEqual(
     first.flows.find(
@@ -809,6 +830,73 @@ test("paradas usan movimiento en cualquier estado textil", () => {
   executeProductionAt(source, runtime, 40000, motionStatus());
   assert.equal(runtime.globalValues.get("L1_t_microparada"), 15);
   assert.equal(runtime.globalValues.get("L1_t_parada_no_asignada"), 0);
+});
+
+test("Produccion refleja el avance de Python sin recalcularlo ni persistirlo", () => {
+  const source = patchFlows(syntheticFlows()).flows.find(
+    (node) => node.id === "production-function"
+  ).func;
+  const runtime = functionRuntime({
+    L1_t_disponible: 0,
+    L1_t_microparada: 0,
+    L1_t_parada_no_asignada: 0,
+    L1_conteo_1: 0,
+  });
+
+  const result = executeProductionAt(source, runtime, 0, motionStatus());
+
+  assert.equal(result.payload.avance_estimado_pct, 25);
+  assert.equal(result.payload.avance_estimado_valido, true);
+  assert.equal(result.payload.estado_avance, "active");
+  assert.equal(result.payload.segundos_activos_prenda, 300);
+  assert.equal(result.payload.tiempo_ideal_prenda_segundos, 1200);
+  assert.equal(result.payload.producto_avance_id, 17);
+  assert.equal(result.payload.corrida_avance_id, "run-17");
+  assert.equal(runtime.globalValues.has("L1_avance_estimado_pct"), false);
+});
+
+test("avance desconocido se refleja como null y nunca como un cero inventado", () => {
+  const source = patchFlows(syntheticFlows()).flows.find(
+    (node) => node.id === "production-function"
+  ).func;
+  for (const invalidPct of [null, "", -1, 101, Number.NaN]) {
+    const runtime = functionRuntime();
+    const result = executeProductionAt(source, runtime, 0, motionStatus({
+      progress_estimated_pct: invalidPct,
+      progress_valid: invalidPct !== null,
+      progress_observable: false,
+      progress_state: "unavailable",
+      ideal_cycle_s: null,
+      progress_reason: "nominal_velocity_missing_for_active_product",
+    }));
+
+    assert.equal(result.payload.avance_estimado_pct, null);
+    assert.equal(result.payload.avance_estimado_valido, false);
+    assert.equal(result.payload.estado_avance, "unavailable");
+    assert.equal(result.payload.tiempo_ideal_prenda_segundos, null);
+    assert.equal(
+      result.payload.motivo_avance,
+      "nominal_velocity_missing_for_active_product"
+    );
+  }
+});
+
+test("el ultimo CORTE sigue observable aunque la siguiente prenda ya este en cero", () => {
+  const source = patchFlows(syntheticFlows()).flows.find(
+    (node) => node.id === "production-function"
+  ).func;
+  const runtime = functionRuntime();
+  const result = executeProductionAt(source, runtime, 0, motionStatus({
+    progress_estimated_pct: 0,
+    progress_state: "active",
+    active_cycle_s: 0,
+    progress_last_completion_event_id: "corte-durable-123",
+    progress_last_completion_context_valid: false,
+  }));
+
+  assert.equal(result.payload.avance_estimado_pct, 0);
+  assert.equal(result.payload.ultimo_corte_avance_id, "corte-durable-123");
+  assert.equal(result.payload.contexto_ultimo_corte_valido, false);
 });
 
 test("cruce del umbral abre PNA una vez y no crea micro al reanudar", () => {

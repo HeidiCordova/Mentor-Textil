@@ -7,9 +7,10 @@ FSM textil (idle/beige_in/en_prenda/cooldown) -> eventos CORTE -> conteo
 ROI de movimiento                              -> tiempos de parada
 ```
 
-No se implementa un porcentaje de avance. La cámara no dispone de una
-referencia física suficiente para afirmar que una prenda está, por ejemplo,
-al 60 %.
+El piloto también refleja un `AVANCE_ESTIMADO_PCT`, calculado en Python con
+tiempo activo y limitado a 99 % hasta un `CORTE` durable. No es una medición de
+longitud ni se persiste todavía en Modbus/SaveDB. Su contrato, precisión y
+límites están en [`../../../../docs/09_AVANCE_ESTIMADO_PRENDA.md`](../../../../docs/09_AVANCE_ESTIMADO_PRENDA.md).
 
 ## Contrato de `/status`
 
@@ -22,7 +23,10 @@ Node-RED solo procesa una observación cuando el detector entrega:
   "motion_ready": true,
   "motion_fresh": true,
   "motion_age_s": 0.08,
-  "micro_stop_max_s": 120
+  "micro_stop_max_s": 120,
+  "progress_state": "active",
+  "progress_estimated_pct": 25.0,
+  "progress_valid": true
 }
 ```
 
@@ -32,6 +36,8 @@ Node-RED solo procesa una observación cuando el detector entrega:
 - `motion_fresh`: la muestra procede de una captura reciente y válida.
 - `micro_stop_max_s`: umbral efectivo configurado; es la única fuente para
   clasificar microparada frente a parada no asignada.
+- `progress_*`: estimación calculada por el detector; Node-RED solo la refleja
+  en el debug de Producción durante esta versión.
 
 Si falta un campo, la cámara está calentando, la muestra está vencida o el
 ROI es inválido, Node-RED congela la continuidad. Esa ausencia de evidencia no

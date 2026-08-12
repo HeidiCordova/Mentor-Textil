@@ -1,3 +1,4 @@
+
 # Piloto Node-RED v4 en caliente
 
 Este paquete cambia la procedencia de `L1_CONTEO_1` y migra la clasificación
@@ -17,7 +18,14 @@ de credenciales completo.
 
 El detector nuevo debe desplegarse primero. Antes de aplicar el candidato,
 `/status` debe entregar `presence_motion`, `motion_ready`, `motion_fresh` y
-`micro_stop_max_s`. Ver `MOTION_STOPS_V1.md`.
+`micro_stop_max_s`. Para el piloto de avance también entrega
+`progress_estimated_pct`, `progress_valid`, `progress_state` y
+`progress_last_completion_event_id`. Ver `MOTION_STOPS_V1.md` y
+[`../../../../docs/09_AVANCE_ESTIMADO_PRENDA.md`](../../../../docs/09_AVANCE_ESTIMADO_PRENDA.md).
+
+El avance es solo observabilidad en el debug de `Producción Art Atlas`: este
+paquete no agrega registros Modbus, globals ni columnas a `Generic In` o
+`SaveDB`. El contrato persistido de cuatro acumulados permanece intacto.
 
 ## Acciones
 

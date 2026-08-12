@@ -5,6 +5,7 @@ import unittest
 from types import SimpleNamespace
 
 from app.application.detector_service import _HealthHandler
+from app.domain.progress import ActiveCycleProgress
 
 
 class _CaptureHandler:
@@ -35,6 +36,15 @@ def _detector(*, sample_age_s=0.1, sample_valid=True):
         micro_stop_max_s=120.0,
     )
     presence = SimpleNamespace(is_warmed_up=True)
+    progress = ActiveCycleProgress()
+    progress.start_cycle(
+        1200.0,
+        cycle_id="cycle-1",
+        run_id="run-1",
+        product_id=17,
+        sku="SKU-17",
+    )
+    progress.tick(False)
     return SimpleNamespace(
         _lock=threading.RLock(),
         _last_detecting=True,
@@ -46,6 +56,7 @@ def _detector(*, sample_age_s=0.1, sample_valid=True):
         _last_beige_ratio=0.7,
         _last_motion_score=0.0,
         _presence_detector=presence,
+        _progress=progress,
         _stop_tracker=tracker,
         fsm=fsm,
     )
@@ -61,6 +72,11 @@ class StatusMovementContractTests(unittest.TestCase):
         self.assertTrue(body["motion_ready"])
         self.assertTrue(body["motion_fresh"])
         self.assertEqual(body["micro_stop_max_s"], 120.0)
+        self.assertEqual(body["progress_state"], "paused")
+        self.assertEqual(body["progress_estimated_pct"], 0.0)
+        self.assertTrue(body["progress_valid"])
+        self.assertEqual(body["ideal_cycle_s"], 1200.0)
+        self.assertEqual(body["progress_product_id"], 17)
 
     def test_stale_or_invalid_sample_is_not_a_stop_observation(self):
         stale = _CaptureHandler.status(_detector(sample_age_s=3.0))

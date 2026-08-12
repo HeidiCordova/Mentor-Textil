@@ -68,6 +68,9 @@ const MOTION_STOP_MARKER =
   `// ${MOTION_STOP_VERSION} - las paradas usan presence_motion, no fsm_state.`;
 const MOTION_STOP_CONTEXT_KEY = "prod_stop_logic_version";
 const MOTION_READY_CONTEXT_KEY = "prod_motion_observation_ready";
+const PROGRESS_DEBUG_VERSION = "mentor-estimated-progress:v1";
+const PROGRESS_DEBUG_MARKER =
+  `// ${PROGRESS_DEBUG_VERSION} - Python calcula; Node-RED solo refleja.`;
 const COUNT_OWNER_MARKER_RE =
   /\/\/ mentor-textile-count:v[\w.-]+ - CONTEO_1 [^\r\n]+/;
 const READ_ONLY_MARKER_RE =
@@ -670,6 +673,56 @@ function migrateMotionStopLogic(node, changes) {
   );
 }
 
+function migrateEstimatedProgressDebug(node, changes) {
+  let source = node.func;
+  if (source.includes(PROGRESS_DEBUG_MARKER)) return;
+
+  const anchor =
+    '    estado_gestor_parada: datos.stop_tracker_state || "sin_dato",';
+  if (!source.includes(anchor)) {
+    throw new Error(
+      "no se encontrÃ³ el payload debug de movimiento para reflejar avance"
+    );
+  }
+
+  const progressDebug = [
+    anchor,
+    `    ${PROGRESS_DEBUG_MARKER}`,
+    "    avance_estimado_pct: (",
+    "        datos.progress_valid === true &&",
+    "        typeof datos.progress_estimated_pct === \"number\" &&",
+    "        Number.isFinite(datos.progress_estimated_pct) &&",
+    "        datos.progress_estimated_pct >= 0 &&",
+    "        datos.progress_estimated_pct <= 100",
+    "    ) ? datos.progress_estimated_pct : null,",
+    "    avance_estimado_valido: (",
+    "        datos.progress_valid === true &&",
+    "        typeof datos.progress_estimated_pct === \"number\" &&",
+    "        Number.isFinite(datos.progress_estimated_pct) &&",
+    "        datos.progress_estimated_pct >= 0 &&",
+    "        datos.progress_estimated_pct <= 100",
+    "    ),",
+    "    estado_avance: typeof datos.progress_state === \"string\"",
+    "        ? datos.progress_state : \"unavailable\",",
+    "    avance_observable: datos.progress_observable === true,",
+    "    segundos_activos_prenda: Number.isFinite(Number(datos.active_cycle_s))",
+    "        ? Number(datos.active_cycle_s) : null,",
+    "    tiempo_ideal_prenda_segundos: datos.ideal_cycle_s !== null &&",
+    "        datos.ideal_cycle_s !== undefined &&",
+    "        Number.isFinite(Number(datos.ideal_cycle_s))",
+    "        ? Number(datos.ideal_cycle_s) : null,",
+    "    producto_avance_id: datos.progress_product_id ?? null,",
+    "    corrida_avance_id: datos.progress_run_id || null,",
+    "    motivo_avance: datos.progress_reason || null,",
+    "    ultimo_corte_avance_id: datos.progress_last_completion_event_id || null,",
+    "    contexto_ultimo_corte_valido: datos.progress_last_completion_context_valid === true",
+    "        ? true : (datos.progress_last_completion_context_valid === false ? false : null),",
+  ].join("\n");
+
+  node.func = source.replace(anchor, progressDebug);
+  changes.push("avance estimado de Python reflejado solo en debug de Produccion");
+}
+
 function ensureOutput(node, outputIndex) {
   if (!Array.isArray(node.wires)) node.wires = [];
   while (node.wires.length <= outputIndex) node.wires.push([]);
@@ -1056,6 +1109,11 @@ function assertValid(
       /estadoActual\s*===\s*["']idle["']/.test(production.func)) {
     throw new Error("Produccion no usa exclusivamente movimiento para paradas");
   }
+  if (!production.func.includes(PROGRESS_DEBUG_MARKER) ||
+      !production.func.includes("datos.progress_estimated_pct") ||
+      /global\.set\s*\(\s*["']L1_avance/i.test(production.func)) {
+    throw new Error("Produccion no refleja el avance estimado de forma read-only");
+  }
   for (const [id, serialized] of untouchedById) {
     const node = flows.find((candidate) => candidate.id === id);
     if (!node || JSON.stringify(node) !== serialized) {
@@ -1241,6 +1299,7 @@ function patchFlows(inputFlows, rawOptions = {}) {
 
   removeLegacyCountLogic(production, changes);
   migrateMotionStopLogic(production, changes);
+  migrateEstimatedProgressDebug(production, changes);
   if (JSON.stringify(production.wires || []) !== productionWiresBefore) {
     throw new Error("se modificaron conexiones de Produccion");
   }
@@ -1440,6 +1499,8 @@ module.exports = {
   MOTION_STOP_VERSION,
   OBSOLETE_IDS,
   PATCH_VERSION,
+  PROGRESS_DEBUG_MARKER,
+  PROGRESS_DEBUG_VERSION,
   READ_ONLY_MARKER,
   SAMPLE_INTERVAL_MS,
   SAMPLE_INTERVAL_SECONDS,

@@ -1,9 +1,11 @@
 import uuid
 import time
+import math
 import logging
 import os
 import threading
 import urllib.request
+import urllib.parse
 import json
 import unicodedata
 import hashlib
@@ -15,7 +17,7 @@ from typing import Dict, Any, Optional
 from ..domain.roi.roi_manager import ROI, ROIManager
 from ..domain.signals.signal_extractors import EdgeSignal, HistogramSignal, FlowSignal, BeigeSignal
 from ..domain.fusion.fusion_engine import FusionEngine, SignalValues, TEXTILE_WEIGHTS
-from ..domain.fsm.textile_separator_fsm import EventFSM, FSMConfig
+from ..domain.fsm.textile_separator_fsm import EventFSM, FSMConfig, State
 from ..domain.calibration.calibrator import Calibrator
 from ..domain.calibration.fingerprint import build_calibration_fingerprint
 from ..domain.calibration.model import (
@@ -26,6 +28,7 @@ from ..domain.calibration.model import (
 from ..domain.watchdog.watchdog import Watchdog
 from ..domain.oee.oee_aggregator import OEEAggregator
 from ..domain.presence.presence_detector import PresenceDetector
+from ..domain.progress import ActiveCycleProgress, ProgressState
 from ..domain.stop_tracker import StopTracker, StopAction
 from ..adapters.gateway_stop_client import GatewayStopClient
 from ..ports.frame_input import FrameInput
@@ -77,6 +80,109 @@ _OEE_STATE_FILE = os.getenv(
 )
 _BACKFILL_MAX_WINDOWS = 96   # cap: 96 × 30 min = 48 h
 _MOTION_STATUS_FRESH_MAX_S = 2.0
+_PROGRESS_CONTEXT_REFRESH_S = 10.0
+
+
+def _active_progress_identity(active_run):
+    if not isinstance(active_run, dict):
+        return None, 'active_production_run_invalid'
+    status = str(active_run.get('status') or '')
+    if status == 'no_active_run':
+        return None, 'active_production_run_missing'
+    if status == 'no_product':
+        return None, 'active_product_missing'
+    if status != 'active':
+        return None, 'active_production_run_invalid'
+
+    product_id = active_run.get('producto_id')
+    sku = str(active_run.get('sku') or '')
+    if product_id is None and not sku:
+        return None, 'active_product_missing'
+    try:
+        normalized_product_id = int(product_id) if product_id is not None else None
+    except (TypeError, ValueError):
+        return None, 'active_product_invalid'
+    run_id = str(active_run.get('run_id') or '')
+    if not run_id:
+        return None, 'active_production_run_invalid'
+    return {
+        'run_id': run_id,
+        'product_id': normalized_product_id,
+        'sku': sku,
+    }, None
+
+
+def _select_active_product_progress_context(active_run, nominal_payload):
+    """Match an authoritative active run to its nominal product velocity.
+
+    ``velocidad_us`` follows the same convention as cloud OEE: one accepted
+    ``CORTE`` is one unit, therefore the ideal cycle is ``1 / velocidad_us``.
+    ``factor_conv`` is intentionally not applied in v1 because the existing
+    OEE calculation does not define or use it either.
+    """
+
+    identity, identity_reason = _active_progress_identity(active_run)
+    if identity is None:
+        return None, identity_reason
+
+    product_id = identity['product_id']
+    sku = identity['sku']
+
+    rows = nominal_payload.get('data', []) if isinstance(nominal_payload, dict) else []
+    if not isinstance(rows, list):
+        return None, 'nominal_velocity_catalog_invalid'
+
+    matched = None
+    if product_id is not None:
+        # The database identity is authoritative. A stale/conflicting SKU may
+        # never select the nominal velocity of a different product.
+        expected_product_id = int(product_id)
+        for row in rows:
+            if not isinstance(row, dict) or row.get('producto_id') is None:
+                continue
+            try:
+                if int(row['producto_id']) == expected_product_id:
+                    matched = row
+                    break
+            except (TypeError, ValueError):
+                continue
+    elif sku:
+        matched = next(
+            (
+                row for row in rows
+                if isinstance(row, dict) and str(row.get('sku') or '') == sku
+            ),
+            None,
+        )
+
+    if matched is None:
+        return None, 'nominal_velocity_missing_for_active_product'
+    try:
+        velocity_us = float(matched.get('velocidad_us'))
+    except (TypeError, ValueError):
+        return None, 'nominal_velocity_invalid'
+    if not math.isfinite(velocity_us) or velocity_us <= 0:
+        return None, 'nominal_velocity_invalid'
+
+    ideal_cycle_s = 1.0 / velocity_us
+    if not math.isfinite(ideal_cycle_s) or ideal_cycle_s <= 0:
+        return None, 'nominal_cycle_time_invalid'
+
+    try:
+        normalized_product_id = (
+            int(product_id) if product_id is not None
+            else int(matched['producto_id'])
+        )
+    except (TypeError, ValueError, KeyError):
+        normalized_product_id = None
+
+    return {
+        'run_id': identity['run_id'],
+        'product_id': normalized_product_id,
+        'sku': sku or str(matched.get('sku') or ''),
+        'velocity_us': velocity_us,
+        'ideal_cycle_s': ideal_cycle_s,
+    }, None
 
 
 def _normalize_col_key(nombre: str) -> str:
@@ -170,6 +276,7 @@ class _HealthHandler(BaseHTTPRequestHandler):
                     motion_age_s is not None and
                     motion_age_s <= _MOTION_STATUS_FRESH_MAX_S
                 )
+                progress = det._progress.snapshot()
                 fusion_score    = getattr(det, '_last_fusion_score', 0.0)
                 beige_ratio     = getattr(det, '_last_beige_ratio', 0.0)
                 motion_score    = getattr(det, '_last_motion_score', 0.0)
@@ -182,6 +289,26 @@ class _HealthHandler(BaseHTTPRequestHandler):
             motion_ready = False
             motion_fresh = False
             motion_age_s = None
+            progress = {
+                'progress_version': 'active-time-v1',
+                'progress_signal': 'presence_motion_latched',
+                'progress_state': 'unavailable',
+                'progress_estimated_pct': None,
+                'progress_valid': False,
+                'progress_observable': False,
+                'progress_reason': 'detector_unavailable',
+                'active_cycle_s': 0.0,
+                'ideal_cycle_s': None,
+                'progress_cycle_id': None,
+                'progress_run_id': None,
+                'progress_product_id': None,
+                'progress_sku': None,
+                'progress_completion_event_id': None,
+                'progress_completion_context_valid': None,
+                'progress_last_completion_event_id': None,
+                'progress_last_completion_cycle_id': None,
+                'progress_last_completion_context_valid': None,
+            }
             fusion_score = 0.0
             beige_ratio  = 0.0
             motion_score = 0.0
@@ -206,6 +333,38 @@ class _HealthHandler(BaseHTTPRequestHandler):
             'motion_fresh': motion_fresh,
             'motion_age_s': (
                 round(motion_age_s, 3) if motion_age_s is not None else None
+            ),
+            'progress_version': progress['progress_version'],
+            'progress_signal': progress['progress_signal'],
+            'progress_state': progress['progress_state'],
+            'progress_estimated_pct': (
+                round(progress['progress_estimated_pct'], 3)
+                if progress['progress_estimated_pct'] is not None else None
+            ),
+            'progress_valid': progress['progress_valid'],
+            'progress_observable': progress['progress_observable'],
+            'progress_reason': progress['progress_reason'],
+            'active_cycle_s': round(progress['active_cycle_s'], 3),
+            'ideal_cycle_s': (
+                round(progress['ideal_cycle_s'], 3)
+                if progress['ideal_cycle_s'] is not None else None
+            ),
+            'progress_cycle_id': progress['progress_cycle_id'],
+            'progress_run_id': progress['progress_run_id'],
+            'progress_product_id': progress['progress_product_id'],
+            'progress_sku': progress['progress_sku'],
+            'progress_completion_event_id': progress['progress_completion_event_id'],
+            'progress_completion_context_valid': (
+                progress['progress_completion_context_valid']
+            ),
+            'progress_last_completion_event_id': (
+                progress['progress_last_completion_event_id']
+            ),
+            'progress_last_completion_cycle_id': (
+                progress['progress_last_completion_cycle_id']
+            ),
+            'progress_last_completion_context_valid': (
+                progress['progress_last_completion_context_valid']
             ),
             'fusion_score': round(fusion_score, 4),
             'beige_ratio': round(beige_ratio, 4),
@@ -460,6 +619,19 @@ class DetectorService:
             snapshot_interval_s=oee_interval,
             micro_stop_max_s=micro_stop_max_s,
         )
+        self._progress = ActiveCycleProgress(
+            max_observation_gap_s=_MOTION_STATUS_FRESH_MAX_S,
+        )
+        self._progress_active_identity: Optional[Dict[str, Any]] = None
+        self._progress_product_context: Optional[Dict[str, Any]] = None
+        self._progress_context_refreshed_at = 0.0
+        self._progress_context_failure_reason = 'progress_context_not_loaded'
+        self._progress_refresh_stop = threading.Event()
+        self._progress_refresh_wakeup = threading.Event()
+        self._progress_refresh_thread: Optional[threading.Thread] = None
+        self._progress_pending_cycle_id: Optional[str] = None
+        self._progress_fetch_generation = 0
+        self._progress_pending_after_generation = 0
         self._flow_production_threshold = 0.1
 
         self._stop_tracker = StopTracker(
@@ -520,6 +692,7 @@ class DetectorService:
         """Start sampling while preserving any currently valid reference."""
         self.calibrator.start()
         self.fsm.reset()
+        self._invalidate_progress_for_fsm_reset_locked('calibration_started')
         self._calibration_state = 'calibrating'
         self._calibration_trigger = trigger
         self._logger.info(
@@ -552,6 +725,7 @@ class DetectorService:
             self._calibration_config_fingerprint = fingerprint
             self.histogram_signal.reset()
             self.fsm.reset()
+            self._invalidate_progress_for_fsm_reset_locked('calibration_context_changed')
             self._active_calibration_id = None
             self._calibration_state = 'loading'
 
@@ -596,6 +770,7 @@ class DetectorService:
                     self._calibration_state = 'ready_persisted'
                     self._calibration_trigger = 'database'
                     self.fsm.reset()
+                    self._invalidate_progress_for_fsm_reset_locked('calibration_restored')
                     self._logger.info(
                         'HSV calibration restored | id=%s quality=%.4f expires=%s',
                         stored.calibration_id,
@@ -646,12 +821,14 @@ class DetectorService:
                 self._calibration_state = 'rejected_using_previous'
                 self._calibration_trigger = 'quality_rejected'
                 self.fsm.reset()
+                self._invalidate_progress_for_fsm_reset_locked('calibration_rejected')
             else:
                 self._start_calibration_locked('quality_retry')
             return
 
         self.histogram_signal.set_reference_histogram(result.histogram)
         self.fsm.reset()
+        self._invalidate_progress_for_fsm_reset_locked('calibration_completed')
         self._active_calibration_id = None
         self._calibration_state = 'ready_memory'
         trigger = self._calibration_trigger or 'automatic'
@@ -837,6 +1014,7 @@ class DetectorService:
         self._log_compute_backend()
         # Load configuration and persisted calibration before accepting frames.
         self._check_config_update(force=True)
+        self._start_progress_context_refresher()
         self._start_health_server()
         self._close_orphan_detector_stop()
         self._backfill_missed_oee_windows()
@@ -857,6 +1035,8 @@ class DetectorService:
                 except Exception:
                     pass
             if frame is None:
+                with self._lock:
+                    self._progress.tick(False, sample_valid=False)
                 null_streak += 1
                 if null_streak >= max_null_before_reconnect:
                     if not self.frame_input.reconnect():
@@ -884,6 +1064,7 @@ class DetectorService:
                     _rh, _rw = roi_frame.shape[:2]
                     if _rh < 16 or _rw < 16:
                         self.flow_signal.reset()
+                        self._progress.tick(False, sample_valid=False)
                         # Aun cuando el frame se descarta por ROI inválido,
                         # verificar si es momento de emitir el snapshot OEE
                         # (el timer es wall-clock; sin este check nunca emitiría).
@@ -905,6 +1086,7 @@ class DetectorService:
                         )
 
                     if self.calibrator.is_active:
+                        self._progress.tick(False, sample_valid=False)
                         self.calibrator.add_sample(roi_frame)
                         if self.calibrator.progress >= 1.0:
                             result = self.calibrator.finish(self.histogram_signal)
@@ -971,6 +1153,13 @@ class DetectorService:
                     self._last_presence_motion = motion_present
                     self._last_tracker_producing = is_producing_tracker
                     self._last_motion_sample_valid = motion_sample_fresh
+                    self._progress.tick(
+                        bool(motion_present),
+                        sample_valid=(
+                            motion_sample_fresh
+                            and self._presence_detector.is_warmed_up
+                        ),
+                    )
                     if motion_sample_fresh:
                         self._last_motion_sample_at = time.monotonic()
                         self.oee.tick(is_producing)
@@ -985,6 +1174,7 @@ class DetectorService:
                     self._last_fusion_score = fusion_score
                     self._last_detecting    = self.fsm._state.value != 'idle'
 
+                    fsm_before = self.fsm.state
                     event_type = self.fsm.process(
                         fusion_score,
                         signals.beige,
@@ -999,12 +1189,27 @@ class DetectorService:
                             and self._presence_detector.motion_now
                         ),
                     )
+                    fsm_after = self.fsm.state
+                    if fsm_before is not State.EN_PRENDA and fsm_after is State.EN_PRENDA:
+                        self._start_progress_cycle_locked()
+                    elif (
+                        fsm_before is State.EN_PRENDA
+                        and fsm_after is not State.EN_PRENDA
+                        and event_type != 'CORTE'
+                    ):
+                        self._progress_pending_cycle_id = None
+                        self._progress_pending_after_generation = 0
+                        self._progress.invalidate('garment_candidate_rejected')
+
                     if event_type == 'CALIBRATE':
                         self._calibrate_beige_from_roi(roi_frame)
                     elif event_type:
-                        self._emit_event(event_type, signals, fusion_score)
+                        event_id = self._emit_event(event_type, signals, fusion_score)
                         if event_type == 'CORTE':
                             self.oee.record_cut()
+                            self._progress_pending_cycle_id = None
+                            self._progress_pending_after_generation = 0
+                            self._progress.complete(event_id)
 
                     if self.oee.should_emit():
                         self._emit_oee(self.oee.snapshot())
@@ -1052,7 +1257,7 @@ class DetectorService:
         except Exception:
             self._logger.warning('Fallo calibración beige — se mantiene rango por defecto')
 
-    def _emit_event(self, event_type: str, signals: SignalValues, confidence: float) -> None:
+    def _emit_event(self, event_type: str, signals: SignalValues, confidence: float) -> str:
         cycle = self.fsm.last_event_metadata
         event_confidence = max(
             float(confidence),
@@ -1083,6 +1288,7 @@ class DetectorService:
             raise EventOutputError(
                 f"Detector event {event['event_id']} was rejected"
             )
+        return event['event_id']
 
     def _emit_oee(self, oee_data: dict) -> None:
         # Acumular valores en dict para evitar duplicados al hacer merge.
@@ -1211,6 +1417,283 @@ class DetectorService:
         except Exception as exc:
             self._logger.warning('Could not fetch current turno from gateway: %s', exc)
             return ''
+
+    # ── Estimated garment progress ───────────────────────────────────────
+
+    def _fetch_active_product_progress_context(self):
+        """Resolve the active run and nominal product velocity from gateway.
+
+        Identity and nominal lookup are deliberately separate.  Once the
+        active endpoint authoritatively reports a run change/closure, a later
+        catalog timeout may not keep the old run alive.
+        """
+
+        if not self._gateway_url:
+            return None, None, 'gateway_url_missing', True
+        scope_query = urllib.parse.urlencode({'linea_id': self.line_id})
+        try:
+            # This endpoint is backed by ProductionRunRepo.FindActive, whose
+            # temporal predicate is started_at <= now < ended_at.  Listing
+            # runs cannot safely reproduce that contract (pagination and
+            # future scheduled runs make "last open row" incorrect).
+            active_url = f'{self._gateway_url}/edge/vision/count?{scope_query}'
+            with urllib.request.urlopen(active_url, timeout=3) as resp:
+                active_run = json.loads(resp.read().decode())
+        except Exception as exc:
+            self._logger.warning(
+                'Could not refresh active production identity: %s',
+                exc,
+            )
+            return None, None, 'active_run_lookup_failed', False
+
+        identity, identity_reason = _active_progress_identity(active_run)
+        if identity is None:
+            return None, None, identity_reason, True
+
+        try:
+            nominal_url = (
+                f'{self._gateway_url}/edge/catalogs/velocidad-nominal?'
+                f'{scope_query}'
+            )
+            with urllib.request.urlopen(nominal_url, timeout=3) as resp:
+                nominal = json.loads(resp.read().decode())
+            context, reason = _select_active_product_progress_context(
+                active_run,
+                nominal,
+            )
+            return identity, context, reason, True
+        except Exception as exc:
+            self._logger.warning(
+                'Could not refresh nominal progress context: %s',
+                exc,
+            )
+            return identity, None, 'nominal_context_lookup_failed', True
+
+    @staticmethod
+    def _progress_context_identity(context):
+        if not context:
+            return None
+        product_id = context.get('product_id')
+        return (
+            str(context.get('run_id') or ''),
+            product_id,
+            '' if product_id is not None else str(context.get('sku') or ''),
+        )
+
+    @staticmethod
+    def _progress_cycle_matches_identity(cycle, identity) -> bool:
+        if not cycle or not identity:
+            return False
+        if str(cycle.get('progress_run_id') or '') != str(identity.get('run_id') or ''):
+            return False
+        product_id = identity.get('product_id')
+        if product_id is not None:
+            return cycle.get('progress_product_id') == product_id
+        # Some legacy runs identify the product only by SKU. The catalog may
+        # still enrich the cycle with a product_id; compare the authoritative
+        # SKU in that case rather than invalidating on the enrichment itself.
+        return (
+            bool(identity.get('sku'))
+            and str(cycle.get('progress_sku') or '') == str(identity.get('sku'))
+        )
+
+    def _refresh_active_product_progress_context(self) -> None:
+        with self._lock:
+            self._progress_fetch_generation += 1
+            fetch_generation = self._progress_fetch_generation
+        identity, context, reason, authoritative = (
+            self._fetch_active_product_progress_context()
+        )
+        now = time.monotonic()
+        with self._lock:
+            if not authoritative:
+                self._progress_context_failure_reason = reason
+                return
+
+            if (
+                self._progress_pending_cycle_id is not None
+                and fetch_generation <= self._progress_pending_after_generation
+            ):
+                # This response was already in flight before the garment
+                # boundary. The wakeup set by the boundary remains queued and
+                # will launch a truly post-boundary lookup next.
+                return
+
+            previous_identity = self._progress_active_identity
+            self._progress_active_identity = identity
+            self._progress_context_failure_reason = reason
+            if context is not None:
+                self._progress_product_context = context
+                self._progress_context_refreshed_at = now
+            else:
+                # Never use an old nominal for a future boundary. The current
+                # cycle has its own frozen ideal and remains unaffected when
+                # the authoritative run identity is unchanged.
+                self._progress_product_context = None
+
+            if self._progress_pending_cycle_id is not None:
+                if self.fsm.state is not State.EN_PRENDA:
+                    self._progress_pending_cycle_id = None
+                    self._progress_pending_after_generation = 0
+                    return
+                if identity is None:
+                    self._progress.invalidate(
+                        reason or 'active_production_run_missing'
+                    )
+                    return
+                if context is None:
+                    self._progress.invalidate(
+                        reason or 'nominal_context_unavailable'
+                    )
+                    return
+                self._progress.start_cycle(
+                    context['ideal_cycle_s'],
+                    cycle_id=self._progress_pending_cycle_id,
+                    run_id=context.get('run_id'),
+                    product_id=context.get('product_id'),
+                    sku=context.get('sku'),
+                )
+                self._progress_pending_cycle_id = None
+                self._progress_pending_after_generation = 0
+                return
+
+            if identity is None:
+                if self._progress.cycle_in_progress:
+                    self._progress.invalidate(
+                        reason or 'active_production_run_missing'
+                    )
+                else:
+                    # A closed run ends the "current garment" contract. Do
+                    # not expose its retained 100% indefinitely.
+                    self._progress.set_unavailable(
+                        reason or 'active_production_run_missing'
+                    )
+                return
+
+            cycle = self._progress.snapshot()
+            cycle_matches_identity = self._progress_cycle_matches_identity(
+                cycle,
+                identity,
+            )
+
+            if self._progress.cycle_in_progress:
+                if not cycle_matches_identity:
+                    self._progress.invalidate('active_production_run_changed')
+                # A velocity edit for the same run is intentionally deferred
+                # until the next cycle. Missing/invalid nominal data also
+                # cannot rewrite the frozen ideal of this cycle.
+                return
+
+            if self._progress.state is ProgressState.COMPLETED:
+                if cycle_matches_identity:
+                    # Keep 100% visible through cooldown/beige for the same
+                    # production run.
+                    return
+                if context is None:
+                    self._progress.set_unavailable(
+                        reason or 'nominal_context_unavailable'
+                    )
+                    return
+                self._progress.wait_for_cycle(
+                    context['ideal_cycle_s'],
+                    run_id=context.get('run_id'),
+                    product_id=context.get('product_id'),
+                    sku=context.get('sku'),
+                )
+                return
+
+            # An invalidated in-flight garment stays invalid until the FSM is
+            # outside EN_PRENDA.  This prevents a catalog refresh from making
+            # an uncertain partial cycle valid again.
+            if (
+                self._progress.state is ProgressState.INVALIDATED
+                and self.fsm.state is State.EN_PRENDA
+            ):
+                if not cycle_matches_identity:
+                    self._progress.invalidate('active_production_run_changed')
+                return
+
+            if context is None:
+                self._progress.set_unavailable(
+                    reason or 'nominal_context_unavailable'
+                )
+                return
+
+            self._progress.wait_for_cycle(
+                context['ideal_cycle_s'],
+                run_id=context.get('run_id'),
+                product_id=context.get('product_id'),
+                sku=context.get('sku'),
+            )
+
+            if previous_identity != identity:
+                self._logger.info(
+                    'Progress context changed | run=%s product=%s sku=%s',
+                    context.get('run_id'),
+                    context.get('product_id'),
+                    context.get('sku'),
+                )
+
+    def _start_progress_context_refresher(self) -> None:
+        """Load context before frames, then keep it fresh off the frame loop."""
+
+        def refresh_safely():
+            try:
+                self._refresh_active_product_progress_context()
+            except Exception:
+                self._logger.exception(
+                    'Unexpected failure refreshing progress context'
+                )
+                with self._lock:
+                    self._progress_context_failure_reason = (
+                        'progress_context_refresh_failed'
+                    )
+                    if self._progress.state in {
+                        ProgressState.UNAVAILABLE,
+                        ProgressState.WAITING_CYCLE,
+                    }:
+                        self._progress.set_unavailable(
+                            'progress_context_refresh_failed'
+                        )
+
+        refresh_safely()
+        if self._progress_refresh_thread and self._progress_refresh_thread.is_alive():
+            return
+
+        def refresh_loop():
+            while not self._progress_refresh_stop.is_set():
+                self._progress_refresh_wakeup.wait(_PROGRESS_CONTEXT_REFRESH_S)
+                self._progress_refresh_wakeup.clear()
+                if self._progress_refresh_stop.is_set():
+                    break
+                refresh_safely()
+
+        self._progress_refresh_thread = threading.Thread(
+            target=refresh_loop,
+            name='progress-context-refresh',
+            daemon=True,
+        )
+        self._progress_refresh_thread.start()
+
+    def _start_progress_cycle_locked(self) -> None:
+        # Never assign a new garment from a cache that may predate an operator
+        # product/run change. Ask the background thread for an authoritative
+        # boundary-time context without blocking the vision loop. Progress
+        # begins conservatively when that response arrives; no earlier time is
+        # backfilled.
+        self._progress_pending_cycle_id = str(uuid.uuid4())
+        self._progress_pending_after_generation = self._progress_fetch_generation
+        self._progress.begin_unresolved_cycle(self._progress_pending_cycle_id)
+        self._progress_refresh_wakeup.set()
+
+    def _invalidate_progress_for_fsm_reset_locked(self, reason: str) -> None:
+        self._progress_pending_cycle_id = None
+        self._progress_pending_after_generation = 0
+        if (
+            self._progress.cycle_in_progress
+            or self._progress.state is ProgressState.INVALIDATED
+        ):
+            self._progress.invalidate(reason)
 
     def _fetch_product_attrs(self) -> Dict[str, str]:
         """Query edge-gateway for the characteristics of the currently active product.
@@ -1535,6 +2018,7 @@ class DetectorService:
         self.fsm.config = effective_fsm
         # A config change in the middle of a candidate is fail-closed.
         self.fsm.reset()
+        self._invalidate_progress_for_fsm_reset_locked('fsm_config_reset')
 
         camera = config.get('camera')
         if camera and isinstance(camera, dict):

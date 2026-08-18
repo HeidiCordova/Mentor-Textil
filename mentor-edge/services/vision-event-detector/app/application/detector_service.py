@@ -15,7 +15,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 from ..domain.roi.roi_manager import ROI, ROIManager
-from ..domain.signals.signal_extractors import EdgeSignal, HistogramSignal, FlowSignal, BeigeSignal
+from ..domain.signals.signal_extractors import EdgeSignal, HistogramSignal, FlowSignal, BeigeSignal, MeshSignal
 from ..domain.fusion.fusion_engine import FusionEngine, SignalValues, TEXTILE_WEIGHTS
 from ..domain.fsm.textile_separator_fsm import EventFSM, FSMConfig, State
 from ..domain.calibration.calibrator import Calibrator
@@ -279,6 +279,9 @@ class _HealthHandler(BaseHTTPRequestHandler):
                 progress = det._progress.snapshot()
                 fusion_score    = getattr(det, '_last_fusion_score', 0.0)
                 beige_ratio     = getattr(det, '_last_beige_ratio', 0.0)
+                mesh_score      = getattr(det, '_last_mesh_score', 0.0)
+                separator_signal = getattr(det, '_last_separator_signal', 0.0)
+                separator_mode  = getattr(det, '_separator_mode', 'auto')
                 motion_score    = getattr(det, '_last_motion_score', 0.0)
                 fsm_state       = det.fsm._state.value if hasattr(det.fsm, '_state') else 'idle'
                 fsm_diagnostics = det.fsm.diagnostics
@@ -311,6 +314,9 @@ class _HealthHandler(BaseHTTPRequestHandler):
             }
             fusion_score = 0.0
             beige_ratio  = 0.0
+            mesh_score   = 0.0
+            separator_signal = 0.0
+            separator_mode = 'auto'
             motion_score = 0.0
             fsm_state = 'idle'
             fsm_diagnostics = {'state': 'idle'}
@@ -368,6 +374,9 @@ class _HealthHandler(BaseHTTPRequestHandler):
             ),
             'fusion_score': round(fusion_score, 4),
             'beige_ratio': round(beige_ratio, 4),
+            'mesh_score': round(mesh_score, 4),
+            'separator_signal': round(separator_signal, 4),
+            'separator_mode': separator_mode,
             'motion_score': round(motion_score, 4),
             'fsm_state': fsm_state,
             'fsm_diagnostics': fsm_diagnostics,
@@ -586,8 +595,18 @@ class DetectorService:
         # Presencia por movimiento temporal dentro del ROI (slow-window diff).
         # Compara frame actual vs frame de ~30 s atrás: detecta movimiento sub-pixel
         # de máquinas textiles donde 1 prenda ≅ 40 min (desplazamiento invisible frame-a-frame).
+        # pixel_threshold: intensidad de cambio mínima (0-255) para contar un
+        # píxel como "en movimiento". El default histórico de 8 es demasiado
+        # bajo para cámaras ruidosas (poca luz/ganancia alta): el ruido de sensor
+        # supera el 8 en >2% del ROI y se lee como producción permanente, por lo
+        # que la parada nunca se declara. Medido en esta línea: con 25 el ruido de
+        # cámara parada cae a ~0.05% del ROI (muy por debajo del 0.5% de motion_area),
+        # y el movimiento real de producción lo supera con holgura. Ajustable por
+        # env sin reconstruir; si el config-service envía presencia_pixel_threshold,
+        # ese valor tiene prioridad (ver _apply_config_locked).
+        _presence_px_thr = float(os.getenv('PRESENCE_PIXEL_THRESHOLD', '25'))
         self._presence_detector = PresenceDetector(
-            pixel_threshold=8.0,   # intensidad de cambio mínima (0-255)
+            pixel_threshold=_presence_px_thr,
             motion_area=0.005,     # 0.5% del ROI debe cambiar para declarar movimiento
             exit_hold=750,         # ≥60 s sin movimiento para parar (≅ 750 frames @ 12.5 fps)
             scale=0.25,            # downscale 4x para reducir memoria del buffer
@@ -598,10 +617,22 @@ class DetectorService:
         self.histogram_signal = HistogramSignal()
         self.flow_signal = FlowSignal()
         self.beige_signal = BeigeSignal()
+        self.mesh_signal = MeshSignal()
 
         self._image_processor = image_processor
-        for sig in [self.edge_signal, self.histogram_signal, self.flow_signal, self.beige_signal]:
+        for sig in [self.edge_signal, self.histogram_signal, self.flow_signal, self.beige_signal, self.mesh_signal]:
             sig.set_image_processor(image_processor)
+
+        # Modo de deteccion del separador que alimenta la FSM de conteo:
+        #   'texture' → firma de malla (dralon) por textura; ignora color y reflejos.
+        #   'color'   → cobertura beige/crema (comportamiento historico).
+        #   'auto'    → max(color, textura): cuenta si CUALQUIERA detecta separador.
+        # Default 'auto' (superset seguro). Se puede fijar por env o por config.
+        self._separator_mode = (os.getenv('SEPARATOR_MODE', 'auto') or 'auto').strip().lower()
+        if self._separator_mode not in ('auto', 'texture', 'color'):
+            self._separator_mode = 'auto'
+        self._last_mesh_score = 0.0
+        self._last_separator_signal = 0.0
 
         self.fusion = FusionEngine()
         self.fsm = EventFSM(FSMConfig())
@@ -1167,7 +1198,22 @@ class DetectorService:
                         for action in stop_actions:
                             self._handle_stop_action(action)
 
+                    # Firma de malla (dralon) por textura: detecta el separador
+                    # aunque sea del mismo tono que el panel. Independiente del color.
+                    mesh_score = self.mesh_signal.compute(frame, roi_frame)
+
+                    # Senal de "separador presente" que alimenta la FSM de conteo.
+                    # La FSM aplica su histeresis (beige_high/low) sobre este valor.
+                    if self._separator_mode == 'texture':
+                        separator_signal = mesh_score
+                    elif self._separator_mode == 'color':
+                        separator_signal = float(signals.beige)
+                    else:  # 'auto': separador si CUALQUIERA lo ve
+                        separator_signal = max(float(signals.beige), mesh_score)
+
                     self._last_beige_ratio  = round(float(signals.beige), 4)
+                    self._last_mesh_score   = round(float(mesh_score), 4)
+                    self._last_separator_signal = round(float(separator_signal), 4)
                     self._last_motion_score = round(motion_score, 4)
 
                     fusion_score = self.fusion.fuse(signals)
@@ -1177,7 +1223,7 @@ class DetectorService:
                     fsm_before = self.fsm.state
                     event_type = self.fsm.process(
                         fusion_score,
-                        signals.beige,
+                        separator_signal,
                         motion_score,
                         fast_activity=(
                             signals.flow >= self.fusion.flow_gate
@@ -1941,6 +1987,19 @@ class DetectorService:
                     br.get('s_min', 30), br.get('s_max', 130),
                     br.get('v_min', 120),
                 )
+
+        # Deteccion del separador por textura de malla (dralon).
+        #   separator_mode: 'texture' | 'color' | 'auto'  (default: el fijado por env)
+        #   mesh_edge_ref : densidad de bordes que mapea a score 1.0 (default 0.05)
+        sep_mode = thresholds.get('separator_mode')
+        if isinstance(sep_mode, str) and sep_mode.strip().lower() in ('auto', 'texture', 'color'):
+            self._separator_mode = sep_mode.strip().lower()
+        mer = thresholds.get('mesh_edge_ref')
+        if mer is not None:
+            try:
+                self.mesh_signal.edge_ref = max(1e-6, float(mer))
+            except (TypeError, ValueError):
+                pass
 
         fsm_config = config.get('fsm', {})
         # Build and validate atomically: an invalid remote update cannot leave

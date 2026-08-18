@@ -216,3 +216,36 @@ class BeigeSignal(Signal):
 
     def reset(self) -> None:
         pass
+
+
+class MeshSignal(Signal):
+    """Detecta la firma de un separador de MALLA abierta (dralon) por textura.
+
+    Un separador de malla tiene cordones + vacios que producen mucha densidad
+    de bordes finos; una tela SOLIDA (de cualquier color) es casi plana. El
+    score normaliza esa densidad a 0-1: ~1.0 sobre malla, ~0 sobre tela solida,
+    metal liso o reflejos. Es un detector de "separador presente" independiente
+    del color, que resuelve el caso en que el separador y el panel son del mismo
+    tono (la cobertura beige no los distingue, pero la textura si).
+
+    Medido en vivo: densidad de bordes ~0.13 sobre malla vs ~0.0006 sobre tela
+    solida (>200x de margen), igual para panel de color distinto o del mismo
+    crema. Por eso el umbral de normalizacion es holgado y estable.
+    """
+
+    def __init__(self, edge_ref: float = 0.05, low: int = 30, high: int = 90):
+        # edge_ref: densidad de bordes que mapea a score 1.0 (malla clara).
+        # low/high: umbrales Canny finos, para captar los vacios de la malla.
+        self.edge_ref = max(1e-6, float(edge_ref))
+        self.low = int(low)
+        self.high = int(high)
+        self._processor: Optional['ImageProcessor'] = None
+
+    def compute(self, frame: np.ndarray, roi_frame: np.ndarray) -> float:
+        gray = self._processor.to_grayscale(roi_frame)
+        edges = self._processor.detect_edges(gray, self.low, self.high)
+        density = self._processor.edges_density(edges)
+        return min(1.0, density / self.edge_ref)
+
+    def reset(self) -> None:
+        pass

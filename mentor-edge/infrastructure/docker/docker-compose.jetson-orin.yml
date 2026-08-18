@@ -57,6 +57,11 @@ services:
       CALIBRATION_SAMPLES: ${CALIBRATION_SAMPLES:-30}
       CALIBRATION_MIN_QUALITY: ${CALIBRATION_MIN_QUALITY:-0.90}
       CALIBRATION_EXPIRY_DAYS: ${CALIBRATION_EXPIRY_DAYS:-90}
+      # Deteccion del separador que alimenta el conteo:
+      #   texture = firma de malla (dralon) por textura → ignora color y reflejos.
+      #   color   = cobertura beige/crema (historico).  auto = max(color, textura).
+      # Esta linea usa separadores de MALLA → 'texture' resuelve el mismo-tono.
+      SEPARATOR_MODE: ${SEPARATOR_MODE:-texture}
       EVENT_SPOOL_PATH: /var/lib/mentor/vision-events.sqlite3
       OEE_STATE_FILE: /var/lib/mentor/last_oee_emit
       EVENT_SPOOL_MAX_EVENTS: ${EVENT_SPOOL_MAX_EVENTS:-10000}
